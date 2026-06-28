@@ -2,7 +2,7 @@
 
 Personal customizations for the [pi coding agent](https://pi.dev/): extensions, skills, prompt templates, and reviewed provider integrations, packaged as a [pi package](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md).
 
-Smoke-tested with runtime `pi` 0.79.1. Development typecheck uses `@earendil-works/pi-coding-agent` 0.79.10.
+Smoke-tested with runtime `pi` 0.80.2. Development typecheck uses `@earendil-works/pi-coding-agent` 0.80.2.
 
 ## Install
 
