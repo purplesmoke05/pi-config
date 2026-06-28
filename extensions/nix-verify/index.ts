@@ -12,7 +12,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 
 const DISABLED = ["1", "true", "yes"].includes(
 	(process.env.PI_NIX_VERIFY_DISABLE ?? "").toLowerCase(),
@@ -29,13 +29,34 @@ interface Checker {
 	check: (absPath: string) => CheckOutcome;
 }
 
-function run(cmd: string, args: string[], timeoutMs = 30_000) {
-	const r = spawnSync(cmd, args, { encoding: "utf8", timeout: timeoutMs });
+function run(
+	cmd: string,
+	args: string[],
+	opts: { timeoutMs?: number; cwd?: string } = {},
+) {
+	const r = spawnSync(cmd, args, {
+		encoding: "utf8",
+		timeout: opts.timeoutMs ?? 30_000,
+		cwd: opts.cwd,
+	});
 	return {
 		code: r.status ?? -1,
 		stdout: (r.stdout ?? "").toString().trim(),
 		stderr: (r.stderr ?? "").toString().trim(),
 	};
+}
+
+/** Walk up from a file path to find the nearest directory containing flake.nix. */
+function findFlakeRoot(absPath: string): string | null {
+	let dir = resolve(absPath);
+	if (!existsSync(dir)) dir = resolve(dir, "..");
+	for (let i = 0; i < 32; i++) {
+		if (existsSync(join(dir, "flake.nix"))) return dir;
+		const parent = resolve(dir, "..");
+		if (parent === dir) return null;
+		dir = parent;
+	}
+	return null;
 }
 
 function hasCmd(cmd: string): boolean {
@@ -79,6 +100,22 @@ function buildCheckers(): Checker[] {
 				return r.code === 0
 					? { ok: true, message: "" }
 					: { ok: false, message: "not formatted (run `nixpkgs-fmt <file>`)" };
+			},
+		});
+	} else if (hasCmd("nix")) {
+		// Fall back to the flake's own formatter (e.g. nixpkgs-fmt via `nix fmt`),
+		// so format checks work in repos whose formatter is not on PATH.
+		out.push({
+			id: "fmt",
+			label: "nix fmt -- --check",
+			check: (p) => {
+				const root = findFlakeRoot(p);
+				if (!root) return { ok: true, message: "" };
+				const r = run("nix", ["fmt", "--", "--check", p], { cwd: root, timeoutMs: 60_000 });
+				// nix fmt prints a noisy "Git tree is dirty" warning to stderr; trust exit code.
+				return r.code === 0
+					? { ok: true, message: "" }
+					: { ok: false, message: `not formatted (run \`nix fmt\` from the flake root)` };
 			},
 		});
 	}
@@ -179,12 +216,32 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("nix-verify", {
-		description: "Parse-check all .nix files under cwd for syntax errors",
-		handler: async (_args, ctx) => {
+		description: "Verify Nix files: parse-check all .nix (default) or eval the flake (--flake)",
+		handler: async (args, ctx) => {
 			if (checkers.length === 0) {
 				ctx.ui.notify("nix-verify: no Nix tooling found (install nix-instantiate)", "warning");
 				return;
 			}
+
+			// /nix-verify --flake : whole-flake eval check (read-only, no build).
+			// Catches eval errors that --parse cannot (undefined attrs, type errors,
+			// stale flake.lock inputs). Slower, so on-demand only.
+			if (args?.includes("--flake")) {
+				if (!existsSync(join(ctx.cwd, "flake.nix"))) {
+					ctx.ui.notify("nix-verify --flake: no flake.nix in cwd", "warning");
+					return;
+				}
+				ctx.ui.notify("nix-verify: running `nix flake check --no-build`...", "info");
+				const r = run("nix", ["flake", "check", "--no-build"], { cwd: ctx.cwd, timeoutMs: 180_000 });
+				if (r.code === 0) {
+					ctx.ui.notify("✓ nix-verify: flake eval clean", "info");
+				} else {
+					ctx.ui.notify("🔴 nix-verify: flake eval failed", "error");
+					ctx.ui.setWidget("nix-verify", ["`nix flake check --no-build` failed:", "", firstLines(r.stderr || r.stdout, 40)]);
+				}
+				return;
+			}
+
 			const parse = checkers.find((c) => c.id === "parse") ?? checkers[0];
 			const files = collectNixFiles(ctx.cwd);
 			if (files.length === 0) {
