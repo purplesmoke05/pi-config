@@ -1,7 +1,7 @@
 {
   "name": "@purplesmoke05/pi-config",
   "version": "0.1.0",
-  "description": "Personal pi coding agent customizations: extensions, skills, and prompt templates",
+  "description": "Personal pi coding agent customizations: extensions, prompt templates, and reviewed provider integrations",
   "keywords": [
     "pi-package"
   ],
@@ -16,9 +16,6 @@
       "./extensions",
       "./vendor/pi-rtk-optimizer/index.ts",
       "./vendor/pi-ollama-cloud-provider/extensions/ollama-cloud/index.ts"
-    ],
-    "skills": [
-      "./skills"
     ],
     "prompts": [
       "./prompts"

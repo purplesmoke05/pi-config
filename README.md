@@ -1,6 +1,6 @@
 # pi-config
 
-Personal customizations for the [pi coding agent](https://pi.dev/): extensions, skills, prompt templates, and reviewed provider integrations, packaged as a [pi package](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md).
+Personal customizations for the [pi coding agent](https://pi.dev/): extensions, prompt templates, and reviewed provider integrations, packaged as a [pi package](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md).
 
 Smoke-tested with runtime `pi` 0.80.2. Development typecheck uses `@earendil-works/pi-coding-agent` 0.80.2.
 
@@ -22,12 +22,15 @@ Or add to `~/.pi/agent/settings.json`:
 
 | Path | Type | What it does |
 |------|------|--------------|
-| `extensions/hello/` | extension | Starter template: registers a `greet` tool and a `/hello` command |
+| `extensions/copilot-instructions/` | extension | Loads GitHub Copilot context files when present: `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, and `.github/skills/*/SKILL.md` |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
 | `vendor/pi-rtk-optimizer/` | vendored extension | RTK command rewriting and tool output compaction for `bash`, `read`, and `grep` |
 | `vendor/pi-ollama-cloud-provider/` | vendored extension | Reviewed copy of `pi-ollama-cloud-provider@0.3.0`, registered as `ollama-cloud` |
-| `skills/example-skill/` | skill | Placeholder documenting the SKILL.md layout |
 | `prompts/` | prompt templates | Empty for now |
+
+## GitHub Copilot Context
+
+Pi already loads `AGENTS.md` and `CLAUDE.md` as native context files. This package additionally mirrors GitHub Copilot repository instructions by appending `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` when they exist. It also exposes `.github/skills/*/SKILL.md` through Pi's native skills loader, so skill bodies stay on-demand instead of always-on. Disable the instruction loader with `PI_COPILOT_INSTRUCTIONS_DISABLE=1`, or the skills bridge with `PI_COPILOT_SKILLS_DISABLE=1`.
 
 ## Providers
 
@@ -75,7 +78,7 @@ Use `/ollama-cloud` inside pi for refresh/status/cache inspection.
 Extensions are TypeScript, loaded by pi via jiti — no build step. To try one without installing:
 
 ```bash
-pi -e ./extensions/hello/index.ts
+pi -e ./extensions/nix-verify/index.ts
 ```
 
 Editor types and typecheck:
@@ -96,7 +99,6 @@ To work against a local checkout instead of the pinned git ref, point settings a
 ## Layout rules
 
 - `extensions/`: one directory per extension with an `index.ts` entry point; single `.ts` files also load.
-- `skills/`: one directory per skill containing a `SKILL.md` with `name` and `description` frontmatter.
 - `prompts/`: `.md` prompt templates.
 - No secrets in this repository. API keys and machine-specific settings live outside (managed separately via Nix/sops).
 
