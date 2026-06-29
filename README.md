@@ -24,6 +24,7 @@ Or add to `~/.pi/agent/settings.json`:
 |------|------|--------------|
 | `extensions/hello/` | extension | Starter template: registers a `greet` tool and a `/hello` command |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
+| `vendor/pi-rtk-optimizer/` | vendored extension | RTK command rewriting and tool output compaction for `bash`, `read`, and `grep` |
 | `vendor/pi-ollama-cloud-provider/` | vendored extension | Reviewed copy of `pi-ollama-cloud-provider@0.3.0`, registered as `ollama-cloud` |
 | `skills/example-skill/` | skill | Placeholder documenting the SKILL.md layout |
 | `prompts/` | prompt templates | Empty for now |
@@ -40,6 +41,19 @@ Set `CMD_ZDR=1` to send Command Code's zero-data-retention header. `opencode` / 
 If none of the provider API keys are configured, pi will report no available models. That is expected; this package does not fall back to local Ollama.
 
 Local Ollama is intentionally not auto-registered here. If local Ollama is needed later, use a separate explicit provider or Ollama's own pi integration so `localhost:11434` is never assumed by this package.
+
+## RTK Optimizer Vendor Notes
+
+`pi-rtk-optimizer@0.8.3` is vendored under `vendor/pi-rtk-optimizer/` instead of installed as an npm dependency because its published peer dependency range stops at pi 0.79, while this package is smoke-tested with pi 0.80.2.
+
+Review notes:
+
+- Upstream source is pinned to commit `78b8f8a08e5564072eb73e2fa9f183c9f03d2625`.
+- Compatibility audit: the public extension/TUI type declarations used by this extension are unchanged between `@earendil-works/pi-coding-agent`/`pi-tui` 0.79.10 and 0.80.2. The vendored `package.json` peer range is patched locally to include 0.80.
+- Network/process targets are local shell commands only: `which`/`where`, `rtk --version`, and `rtk rewrite`.
+- Runtime config is stored under `~/.pi/agent/extensions/pi-rtk-optimizer/config.json` (or the active `PI_CODING_AGENT_DIR` equivalent).
+- Local default patch enables read compaction, minimal source filtering, smart truncation, and exact skill-read preservation so the full RTK output pipeline is active by default while keeping skill files exact.
+- The `/rtk` command can inspect, toggle, reset, and verify the optimizer at runtime.
 
 ## Ollama Cloud Vendor Notes
 

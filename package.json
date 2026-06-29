@@ -14,6 +14,7 @@
   "pi": {
     "extensions": [
       "./extensions",
+      "./vendor/pi-rtk-optimizer/index.ts",
       "./vendor/pi-ollama-cloud-provider/extensions/ollama-cloud/index.ts"
     ],
     "skills": [
