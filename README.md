@@ -23,6 +23,7 @@ Or add to `~/.pi/agent/settings.json`:
 | Path | Type | What it does |
 |------|------|--------------|
 | `extensions/copilot-instructions/` | extension | Loads GitHub Copilot context files when present: `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, and `.github/skills/*/SKILL.md` |
+| `extensions/autonomy-scaffold/` | extension | Appends a system-prompt discipline block that keeps weak-autonomy models on task (don't stop before the work is verifiable; investigate with your own tools before asking). Disabled by default; enable with `PI_AUTONOMY_SCAFFOLD_ENABLE=1` |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
 | `vendor/pi-rtk-optimizer/` | vendored extension | RTK command rewriting and tool output compaction for `bash`, `read`, and `grep` |
 | `vendor/pi-ollama-cloud-provider/` | vendored extension | Reviewed copy of `pi-ollama-cloud-provider@0.3.0`, registered as `ollama-cloud` |
@@ -31,6 +32,27 @@ Or add to `~/.pi/agent/settings.json`:
 ## GitHub Copilot Context
 
 Pi already loads `AGENTS.md` and `CLAUDE.md` as native context files. This package additionally mirrors GitHub Copilot repository instructions by appending `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` when they exist. It also exposes `.github/skills/*/SKILL.md` through Pi's native skills loader, so skill bodies stay on-demand instead of always-on. Disable the instruction loader with `PI_COPILOT_INSTRUCTIONS_DISABLE=1`, or the skills bridge with `PI_COPILOT_SKILLS_DISABLE=1`.
+
+## Autonomy Scaffold
+
+Weak-autonomy models tend to fail in two ways: they stop early (declaring the task done, or asking the user for permission before the work is verifiable), and they ask the user for things they could look up themselves. `extensions/autonomy-scaffold/` appends a short discipline block to the system prompt on every agent start, telling the model to stay on task until the result is verified and to investigate with its own tools (`ls`, `find`, `grep`, `read`, `bash`) before asking.
+
+The block is idempotent (guarded by `<autonomy_scaffold>` markers) and is **disabled by default**. Enable it at pi launch via environment variable (typically set in your Nix/sops env, alongside provider keys):
+
+```bash
+# Enable for all models
+export PI_AUTONOMY_SCAFFOLD_ENABLE=1
+```
+
+When enabled, the scaffold applies to every model unless `PI_AUTONOMY_SCAFFOLD_ONLY` narrows it to a comma-separated list, matched as case-insensitive substrings against model id and provider:
+
+```bash
+# Enable only for weak-autonomy models
+export PI_AUTONOMY_SCAFFOLD_ENABLE=1
+export PI_AUTONOMY_SCAFFOLD_ONLY=glm,qwen-coder,llama,deepseek
+```
+
+`PI_AUTONOMY_SCAFFOLD_ONLY` on its own does nothing -- `PI_AUTONOMY_SCAFFOLD_ENABLE=1` is the master switch. Use `/autonomy-scaffold` inside pi to check whether the scaffold is active for the current model.
 
 ## Providers
 
