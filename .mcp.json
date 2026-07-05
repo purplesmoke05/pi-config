@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "project-sops": {
+      "command": "uvx",
+      "args": ["strands-agents-sops", "mcp", "--sop-paths", "agent-sops"]
+    }
+  }
+}

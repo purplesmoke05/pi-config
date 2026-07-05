@@ -34,6 +34,7 @@
     "typescript": "^5.7.0"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sops:skills": "bash scripts/generate-sop-skills.sh"
   }
 }

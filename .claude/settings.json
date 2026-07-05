@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "agent-sop": {
+      "source": {
+        "source": "github",
+        "repo": "strands-agents/agent-sop"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "agent-sops@agent-sop": true
+  }
+}

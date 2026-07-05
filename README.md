@@ -27,6 +27,7 @@ Or add to `~/.pi/agent/settings.json`:
 | `extensions/providers/` | extension | Registers the Command Code model provider |
 | `vendor/pi-rtk-optimizer/` | vendored extension | RTK command rewriting and tool output compaction for `bash`, `read`, and `grep` |
 | `vendor/pi-ollama-cloud-provider/` | vendored extension | Reviewed copy of `pi-ollama-cloud-provider@0.3.0`, registered as `ollama-cloud` |
+| `agent-sops/` | Agent SOPs | Recurring maintenance procedures for this repo as [Agent SOPs](https://github.com/strands-agents/agent-sop), served to Claude Code via `.mcp.json` |
 | `prompts/` | prompt templates | Empty for now |
 
 ## GitHub Copilot Context
@@ -94,6 +95,39 @@ Review notes:
 - **Reasoning effort control patch:** the vendored copy now reads models.dev `reasoning_options` and builds a per-model `thinkingLevelMap` + `compat.supportsReasoningEffort: true` for `type: "effort"` models. GLM-5.2 (`["high","max"]`) thus exposes a real `high`/`xhigh` picker and sends `reasoning_effort` to ollama.com, instead of pi showing an ineffective `off`..`high` range that never reached the API. Toggle-only reasoning models (GLM-4.7/5.1) keep legacy behavior. Set `PI_OLLAMA_CLOUD_NO_EFFORT=1` to disable. Cache entries now persist `effortValues` so offline discovery preserves the map.
 
 Use `/ollama-cloud` inside pi for refresh/status/cache inspection.
+
+## Agent SOPs
+
+`agent-sops/` holds the recurring maintenance procedures of this repo in the [Agent SOP format](https://github.com/strands-agents/agent-sop) (`.sop.md`, RFC 2119 constraints). Each SOP was distilled from the git history, including the failure modes hit along the way:
+
+| SOP | Procedure |
+|-----|-----------|
+| `add-pi-extension` | Add a new extension under `extensions/` following repo conventions (kill-switch env vars, `/command` inspection, deliberate-failure verification) |
+| `vendor-pi-extension` | Review and vendor a third-party pi extension (source pinning, gitHead check, network/write-path audit, documented patches) |
+| `bump-pi-baseline` | Track a new pi runtime version (devDeps bump, vendored type-surface audit, patch re-evaluation, runtime re-verification) |
+
+### Using them from Claude Code
+
+Three pieces are committed to this repo, so teammates get everything after approving on first open:
+
+1. **`.claude/skills/`** holds Agent Skills generated from the local SOPs (via `strands-agents-sops skills`), so Claude Code picks them up as project skills with no extra install — including autonomous selection when a task matches. Regenerate after editing any SOP with `npm run sops:skills`.
+2. **`.claude/settings.json`** enables the official `agent-sops@agent-sop` plugin from the `strands-agents/agent-sop` marketplace. It provides the `agent-sop-author` skill for writing/updating SOPs, its `validate-sop.sh` format validator, and the upstream built-in SOPs (`code-assist`, `pdd`, ...) as skills.
+3. **`.mcp.json`** additionally serves the same SOPs as MCP prompts via `uvx` (requires [uv](https://docs.astral.sh/uv/)): `/project-sops:add-pi-extension` etc. This reads `agent-sops/*.sop.md` live, which is handy while iterating on an SOP before regenerating skills. Optional — decline the server approval if uv is not available.
+
+Other MCP-capable tools (Kiro, Cursor, etc.) can point the same server command at this directory; see the upstream README for per-tool syntax.
+
+### Authoring and validation
+
+Create or edit SOPs with the `agent-sop-author` skill (ask Claude Code to "create an SOP for ..."). Every change must pass the official validator shipped with the plugin, then be regenerated into skills:
+
+```bash
+bash ~/.claude/plugins/cache/agent-sop/agent-sops/*/skills/agent-sop-author/validate-sop.sh agent-sops/<name>.sop.md
+npm run sops:skills
+```
+
+(Invoke the validator via `bash`; the script's `/bin/bash` shebang does not resolve on NixOS.)
+
+The `agent-sops/*.sop.md` files are the single source of truth; `.claude/skills/` is generated output and only local SOPs are copied there — upstream built-ins stay out to avoid duplicating the plugin's skills.
 
 ## Develop
 
