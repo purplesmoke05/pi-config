@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed — local patches (this repo only)
+- macOS sound is now distinct per outcome and uses `afplay` with system sounds
+  instead of the single `osascript beep`. `playSound` takes the notify `kind`
+  and resolves `/System/Library/Sounds/<name>.aiff` from
+  `PI_NOTIFY_SUCCESS_SOUND` / `PI_NOTIFY_ERROR_SOUND` (default `Glass` /
+  `Basso`). Falls back to `osascript beep` if `afplay` or the named sound is
+  unavailable. Reason: the upstream `beep` is quiet and identical for success
+  and error, so failures were easy to miss on macOS. Linux/Windows unchanged.
+  Upstream's own README notes "If you want different sounds for success vs
+  error, add that in `extensions/index.ts`" — this patch is that edit.
+  Security: `afplay` is invoked via `execFile` with an argument array resolved
+  from a fixed directory (`/System/Library/Sounds`) and an env-supplied name
+  sanitized through `path.join`; no shell, no user text reaches the command.
+
 ## [0.1.2] - vendored
 
 Pinned to upstream commit `b3e040d10bc0290d931c5188f49457abcc3d64d0` (npm `pi-notify-agent@0.1.2`,

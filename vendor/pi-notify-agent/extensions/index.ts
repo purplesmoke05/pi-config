@@ -148,15 +148,41 @@ function requestTerminalAttention(): void {
 	playTerminalBell();
 }
 
-function playSound(): SoundPlayback {
+const DEFAULT_MAC_SUCCESS_SOUND = "Glass";
+const DEFAULT_MAC_ERROR_SOUND = "Basso";
+const MAC_SOUNDS_DIR = "/System/Library/Sounds";
+
+/**
+ * Resolve the macOS system sound file for a notify kind. The sound name is
+ * taken from PI_NOTIFY_SUCCESS_SOUND / PI_NOTIFY_ERROR_SOUND when set, falling
+ * back to Glass (success) / Basso (error). Returns null if the .aiff is not
+ * present so the caller can fall back to `osascript beep`.
+ */
+function macSoundForKind(kind: NotifyKind): string | null {
+	const envName = kind === "success" ? "PI_NOTIFY_SUCCESS_SOUND" : "PI_NOTIFY_ERROR_SOUND";
+	const name = (process.env[envName] ?? "").trim();
+	const fallback = kind === "success" ? DEFAULT_MAC_SUCCESS_SOUND : DEFAULT_MAC_ERROR_SOUND;
+	const file = path.join(MAC_SOUNDS_DIR, `${name || fallback}.aiff`);
+	return existsSync(file) ? file : null;
+}
+
+function playSound(kind: NotifyKind): SoundPlayback {
 	if (canUseWindowsToast() && commandExists("rundll32.exe")) {
 		runDetached("rundll32.exe", ["user32.dll,MessageBeep"]);
 		return "external";
 	}
 
-	if (isMac() && commandExists("osascript")) {
-		runDetached("osascript", ["-e", "beep"]);
-		return "external";
+	if (isMac()) {
+		const file = commandExists("afplay") ? macSoundForKind(kind) : null;
+		if (file) {
+			runDetached("afplay", [file]);
+			return "external";
+		}
+		// Fall back to the system beep if afplay or the named sound is unavailable.
+		if (commandExists("osascript")) {
+			runDetached("osascript", ["-e", "beep"]);
+			return "external";
+		}
 	}
 
 	if (isLinux()) {
@@ -261,7 +287,7 @@ function notifyOutcome(
 		sendTerminalNotification(title, body);
 	}
 
-	const soundPlayback = soundEnabled ? playSound() : undefined;
+	const soundPlayback = soundEnabled ? playSound(kind) : undefined;
 	if (attentionEnabled && soundPlayback !== "terminal-bell") {
 		requestTerminalAttention();
 	}
