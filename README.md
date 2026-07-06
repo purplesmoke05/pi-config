@@ -25,6 +25,7 @@ Or add to `~/.pi/agent/settings.json`:
 | `extensions/copilot-instructions/` | extension | Loads GitHub Copilot context files when present: `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, and `.github/skills/*/SKILL.md` |
 | `extensions/autonomy-scaffold/` | extension | Appends a system-prompt discipline block that keeps weak-autonomy models on task (don't stop before the work is verifiable; investigate with your own tools before asking). Disabled by default; enable with `PI_AUTONOMY_SCAFFOLD_ENABLE=1` |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
+| `extensions/copy-code/` | extension | `/copy-code` copies a fenced code block from the last answer to the clipboard as raw text, without the gutter indent that mouse-selecting pi's rendered output picks up |
 | `vendor/pi-rtk-optimizer/` | vendored extension | RTK command rewriting and tool output compaction for `bash`, `read`, and `grep` |
 | `vendor/pi-ollama-cloud-provider/` | vendored extension | Reviewed copy of `pi-ollama-cloud-provider@0.3.0`, registered as `ollama-cloud` |
 | `vendor/pi-notify-agent/` | vendored extension | Reviewed copy of `pi-notify-agent@0.1.2`; cross-platform desktop notification + sound on `agent_end`, with `/notify-test` and `/notify-status` |
@@ -68,6 +69,22 @@ Set `CMD_ZDR=1` to send Command Code's zero-data-retention header. `opencode` / 
 If none of the provider API keys are configured, pi will report no available models. That is expected; this package does not fall back to local Ollama.
 
 Local Ollama is intentionally not auto-registered here. If local Ollama is needed later, use a separate explicit provider or Ollama's own pi integration so `localhost:11434` is never assumed by this package.
+
+## copy-code
+
+pi renders fenced code blocks with a per-line prefix (`codeBlockIndent`, default 2 spaces) plus a 1-space `paddingX` left margin, both baked into the line as literal characters. Mouse-selecting a code block in the terminal therefore copies that leading whitespace on every line, so pasted code comes in shifted right. pi's own `/copy` avoids this by copying pre-render text, but it copies the entire last assistant message — not a single block.
+
+`extensions/copy-code/` keeps the latest assistant text (captured on `message_end`) and copies just the requested fenced block to the clipboard as raw text, with no gutter and with the code's own inner indentation preserved.
+
+```
+/copy-code         copy the LAST code block
+/copy-code 2       copy the Nth block (1-based)
+/copy-code all     copy every block, concatenated as fenced markdown
+/copy-code list    show a numbered list of blocks (no copy)
+/cc                alias for /copy-code
+```
+
+Disable the extension with `PI_COPY_CODE_DISABLE=1`. No network access, no filesystem writes; the only subprocess is pi's own `copyToClipboard` (xclip/xsel/wl-copy/pbcopy/clip or OSC 52).
 
 ## RTK Optimizer Vendor Notes
 
