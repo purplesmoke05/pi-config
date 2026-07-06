@@ -1,0 +1,43 @@
+{
+  "name": "pi-notify-agent",
+  "version": "0.1.2",
+  "description": "Cross-platform desktop notifications and sounds for pi-coding-agent",
+  "type": "module",
+  "author": "AlyusLabs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlyusLabs/pi-notify-agent.git"
+  },
+  "homepage": "https://github.com/AlyusLabs/pi-notify-agent#readme",
+  "bugs": {
+    "url": "https://github.com/AlyusLabs/pi-notify-agent/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "notifications",
+    "desktop-notifications",
+    "coding-agent"
+  ],
+  "files": [
+    "extensions",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "image": "https://raw.githubusercontent.com/AlyusLabs/pi-notify-agent/main/assets/preview.png"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

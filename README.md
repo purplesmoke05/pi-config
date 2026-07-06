@@ -27,6 +27,7 @@ Or add to `~/.pi/agent/settings.json`:
 | `extensions/providers/` | extension | Registers the Command Code model provider |
 | `vendor/pi-rtk-optimizer/` | vendored extension | RTK command rewriting and tool output compaction for `bash`, `read`, and `grep` |
 | `vendor/pi-ollama-cloud-provider/` | vendored extension | Reviewed copy of `pi-ollama-cloud-provider@0.3.0`, registered as `ollama-cloud` |
+| `vendor/pi-notify-agent/` | vendored extension | Reviewed copy of `pi-notify-agent@0.1.2`; cross-platform desktop notification + sound on `agent_end`, with `/notify-test` and `/notify-status` |
 | `agent-sops/` | Agent SOPs | Recurring maintenance procedures for this repo as [Agent SOPs](https://github.com/strands-agents/agent-sop), served to Claude Code via `.mcp.json` |
 | `prompts/` | prompt templates | Empty for now |
 
@@ -95,6 +96,22 @@ Review notes:
 - **Reasoning effort control patch:** the vendored copy now reads models.dev `reasoning_options` and builds a per-model `thinkingLevelMap` + `compat.supportsReasoningEffort: true` for `type: "effort"` models. GLM-5.2 (`["high","max"]`) thus exposes a real `high`/`xhigh` picker and sends `reasoning_effort` to ollama.com, instead of pi showing an ineffective `off`..`high` range that never reached the API. Toggle-only reasoning models (GLM-4.7/5.1) keep legacy behavior. Set `PI_OLLAMA_CLOUD_NO_EFFORT=1` to disable. Cache entries now persist `effortValues` so offline discovery preserves the map.
 
 Use `/ollama-cloud` inside pi for refresh/status/cache inspection.
+
+## pi-notify-agent Vendor Notes
+
+`pi-notify-agent@0.1.2` is vendored under `vendor/pi-notify-agent/` instead of installed with `pi install npm:...` so it could be security-reviewed before granting it process-launch access, and so its `import type` specifiers resolve against this package's `@earendil-works/pi-*` runtime fork rather than the upstream `@mariozechner/pi-*` scope.
+
+Review notes:
+
+- Upstream source is pinned to commit `b3e040d10bc0290d931c5188f49457abcc3d64d0` (verified: the npm tarball `gitHead` matches the upstream `main` HEAD, so the published package matches its public source).
+- No runtime `dependencies`; only `peerDependencies` on pi packages. No npm install scripts.
+- No network access: no `fetch`/`http`/`https`/`net`/`undici`/websocket usage anywhere in the source.
+- No filesystem writes: only `existsSync` reads of three fixed freedesktop sound paths. The extension stores no config or cache of its own; all settings live in pi's native flag system.
+- Process execution is limited to local notification/sound utilities via `execFile` with argument arrays (no shell, errors swallowed so notifications never break the agent): `which`/`where`, `powershell.exe`, `osascript`, `notify-send`, `rundll32.exe`, `canberra-gtk-play`, `paplay`. Falls back to terminal escape sequences (Kitty `OSC 99`, otherwise `OSC 777`) and `BEL` when no desktop session is present.
+- User-controlled text (the last assistant message preview) is escaped before reaching a shell-adjacent interface: PowerShell single-quote context (`psQuote`), AppleScript double-quote context (`appleScriptQuote`), or `notify-send` via argument array. No injection surface found.
+- Local patches (this repo only): `import type` specifiers and `peerDependencies` migrated from `@mariozechner/pi-*` to `@earendil-works/pi-*` so the vendored sources typecheck and load under this package's pi runtime. `assets` dropped from `files` since the preview image is not vendored. No behavior change.
+
+Runtime commands: `/notify-test` (or `/notify-test error`) emits a sample notification, `/notify-status` shows the active flags. Flags: `--notify-min-ms`, `--notify-success`, `--notify-error`, `--notify-sound`, `--notify-attention` (all `on`/`off`, default threshold 3000ms).
 
 ## Agent SOPs
 
