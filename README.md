@@ -23,6 +23,7 @@ Or add to `~/.pi/agent/settings.json`:
 | Path | Type | What it does |
 |------|------|--------------|
 | `extensions/copilot-instructions/` | extension | Loads GitHub Copilot context files when present: `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, and `.github/skills/*/SKILL.md` |
+| `extensions/copilot-usage/` | extension | Shows outgoing input-token estimates and provider-reported token/list-price credit usage, only while the `github-copilot` provider is selected |
 | `extensions/autonomy-scaffold/` | extension | Appends a system-prompt discipline block that keeps weak-autonomy models on task (don't stop before the work is verifiable; investigate with your own tools before asking). Disabled by default; enable with `PI_AUTONOMY_SCAFFOLD_ENABLE=1` |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
 | `extensions/copy-code/` | extension | `/copy-code` copies a fenced code block from the last answer to the clipboard as raw text, without the gutter indent that mouse-selecting pi's rendered output picks up |
@@ -35,6 +36,35 @@ Or add to `~/.pi/agent/settings.json`:
 ## GitHub Copilot Context
 
 Pi already loads `AGENTS.md` and `CLAUDE.md` as native context files. This package additionally mirrors GitHub Copilot repository instructions by appending `.github/copilot-instructions.md` and `.github/instructions/**/*.instructions.md` when they exist. It also exposes `.github/skills/*/SKILL.md` through Pi's native skills loader, so skill bodies stay on-demand instead of always-on. Disable the instruction loader with `PI_COPILOT_INSTRUCTIONS_DISABLE=1`, or the skills bridge with `PI_COPILOT_SKILLS_DISABLE=1`.
+
+## GitHub Copilot Usage
+
+`extensions/copilot-usage/` is active only when the current model's provider is exactly `github-copilot`. It adds a compact `Copilot` status through `ctx.ui.setStatus()`, so it composes with the built-in footer and `pi-powerline-footer` instead of replacing either one. Switching to another provider clears both the status and its detailed report.
+
+The status separates values with different confidence levels:
+
+- While idle, `next-base ≈…` estimates the system prompt, active tool schemas, and current context. It is a preflight baseline for the next call; text still sitting unsent in the editor is not part of Pi's extension context yet.
+- Once a prompt has been submitted and Pi reaches the HTTP boundary, `sending ≈…` estimates the final provider payload using a conservative heuristic: ASCII characters divided by four, non-ASCII code points multiplied by two, and 1,200 tokens per image, with Pi's own context estimate as a floor. Pi has no provider tokenizer at this hook, so this is deliberately marked as an estimate; image cost remains model/resolution dependent and base64 bytes are not counted as text.
+- After a response, branch totals use the token buckets reported by the provider and stored in Pi: uncached input, cache reads, cache writes, and output.
+- `≈… cr` is a local gross list-price estimate (`1 AI credit = $0.01`). It uses the cost Pi stored with each response and applies known GitHub long-context tiers from the pricing snapshot linked in the report. It is not GitHub's authoritative net bill.
+
+Use the runtime command for history and official reconciliation:
+
+```text
+/copilot-usage                    current UTC month across all Pi sessions
+/copilot-usage 2026-07            a specific UTC month
+/copilot-usage official           current month plus GitHub account billing
+/copilot-usage official 2026-07   specific month plus GitHub account billing
+/copilot-usage clear              hide the detailed report
+```
+
+The local monthly scan counts every recorded Copilot assistant message in the valid session files returned by Pi's session index, including calls on abandoned in-file branches, while removing identical entries copied into forked/cloned session files. Session content is processed locally only; the report exposes usage totals, not prompts or responses. Long-context adjustments use the dated pricing snapshot shown in the report only for calls from the AI Credits transition date onward; older calls retain Pi's stored historical cost.
+
+Pi 0.80.2 does not persist the provider, tokens, or cost of its internal LLM calls for automatic/manual compaction and tree branch summaries. When those entries are present, this extension does not pretend they were free: it marks local credits as `+?`, reports how many internal calls are unattributed, and leaves GitHub's official account report as the authoritative total. Recovering those historical tokens exactly requires an upstream Pi session-format/event change.
+
+The extension does **not** read `auth.json`, GitHub tokens, `hosts.yml`, or environment credential values. Network access occurs only after the explicit `official` command, which invokes `gh api` with fixed argument arrays and lets GitHub CLI handle its own authentication. The report prints the `gh` login because that account is not guaranteed to be the same account used by Pi's Copilot OAuth. The official user billing endpoint is account-wide (not Pi-only) and can require a classic PAT plus suitable billing access; organization- or enterprise-managed seats may require their corresponding admin endpoint instead. Grandfathered premium-request plans are not silently converted into AI Credits.
+
+Disable all tracking and display with `PI_COPILOT_USAGE_DISABLE=1` (also accepts `true` or `yes`). The `/copilot-usage` command remains registered so it can report that the extension is disabled.
 
 ## Autonomy Scaffold
 
