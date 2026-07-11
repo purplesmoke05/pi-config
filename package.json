@@ -40,7 +40,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test:copilot-usage": "node --test --experimental-strip-types extensions/copilot-usage/usage.test.ts",
+    "test:copilot-usage": "node --test --experimental-strip-types extensions/copilot-usage/usage.test.ts extensions/copilot-usage/display.test.ts extensions/copilot-usage/index.test.ts",
     "sops:skills": "bash scripts/generate-sop-skills.sh"
   }
 }

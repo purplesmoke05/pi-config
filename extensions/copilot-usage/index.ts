@@ -12,6 +12,7 @@
 
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import {
 	SessionManager,
@@ -19,6 +20,11 @@ import {
 	type ExtensionCommandContext,
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import {
+	collectInitialContextFiles,
+	formatCopilotStatus,
+	formatInitialContextWidget,
+} from "./display.ts";
 import {
 	PRICING_SNAPSHOT_DATE,
 	PRICING_EFFECTIVE_FROM,
@@ -43,6 +49,7 @@ import {
 
 const STATUS_KEY = "copilot-usage";
 const REPORT_KEY = "copilot-usage-report";
+const INITIAL_CONTEXT_KEY = "copilot-initial-context";
 const GITHUB_API_VERSION = "2026-03-10";
 const GH_TIMEOUT_MS = 15_000;
 const GITHUB_LOGIN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)$/;
@@ -61,12 +68,6 @@ type CommandRequest =
 	| { mode: "official"; period: UtcMonthPeriod }
 	| { mode: "clear" }
 	| { mode: "invalid" };
-
-function compactTokens(value: number): string {
-	if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 1 : 2)}m`;
-	if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 100_000 ? 0 : 1)}k`;
-	return String(value);
-}
 
 function detailedNumber(value: number, maximumFractionDigits = 0): string {
 	return new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value);
@@ -114,6 +115,21 @@ function activeBranch(ctx: ExtensionContext, pending?: AssistantMessage): UsageA
 	const entries: unknown[] = [...ctx.sessionManager.getBranch()];
 	if (pending) entries.push({ type: "message", message: pending });
 	return aggregateSessionEntries(entries);
+}
+
+function hasAssistantMessage(ctx: ExtensionContext): boolean {
+	return ctx.sessionManager
+		.getBranch()
+		.some((entry) => entry.type === "message" && entry.message.role === "assistant");
+}
+
+function userMessageText(message: AgentMessage): string | null {
+	if (message.role !== "user") return null;
+	if (typeof message.content === "string") return message.content;
+	return message.content
+		.filter((content) => content.type === "text")
+		.map((content) => content.text)
+		.join("\n");
 }
 
 function nextBaseInputEstimate(pi: ExtensionAPI, ctx: ExtensionContext): number | null {
@@ -328,10 +344,20 @@ function buildReport(
 export default function copilotUsageExtension(pi: ExtensionAPI): void {
 	const disabled = isCopilotUsageDisabled();
 	let latestRequest: PayloadEstimate | null = null;
+	let initialPrompt: string | null = null;
+	let initialContextWasShown = false;
+	let initialContextWidgetVisible = false;
+
+	function clearInitialContextWidget(ctx: ExtensionContext): void {
+		if (!initialContextWidgetVisible) return;
+		ctx.ui.setWidget(INITIAL_CONTEXT_KEY, undefined);
+		initialContextWidgetVisible = false;
+	}
 
 	function clearUi(ctx: ExtensionContext): void {
 		ctx.ui.setStatus(STATUS_KEY, undefined);
 		ctx.ui.setWidget(REPORT_KEY, undefined);
+		clearInitialContextWidget(ctx);
 	}
 
 	function renderStatus(ctx: ExtensionContext, aggregate?: UsageAggregate): void {
@@ -340,23 +366,29 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 			return;
 		}
 		const resolvedAggregate = aggregate ?? activeBranch(ctx);
-		const request = latestRequest
+		const requestKind = latestRequest ? "sending" : "next-base";
+		const requestTokens = latestRequest
 			? latestRequest.ok
-				? `sending ≈${compactTokens(latestRequest.tokens ?? 0)}`
-				: "sending ≈?"
-			: (() => {
-					const nextBase = nextBaseInputEstimate(pi, ctx);
-					return nextBase === null ? "next-base ≈?" : `next-base ≈${compactTokens(nextBase)}`;
-				})();
-		const status =
-			`Copilot ${request} · branch ↑${compactTokens(inputTokens(resolvedAggregate))}` +
-			` ↓${compactTokens(resolvedAggregate.output)} · ${creditEstimate(resolvedAggregate)}`;
+				? latestRequest.tokens
+				: null
+			: nextBaseInputEstimate(pi, ctx);
+		const status = formatCopilotStatus({
+			requestKind,
+			requestTokens,
+			branchInputTokens: inputTokens(resolvedAggregate),
+			branchOutputTokens: resolvedAggregate.output,
+			creditEstimate: creditEstimate(resolvedAggregate),
+		});
 		ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", status));
 	}
 
 	pi.on("session_start", (_event, ctx) => {
 		latestRequest = null;
+		initialPrompt = null;
+		initialContextWasShown = false;
+		initialContextWidgetVisible = false;
 		ctx.ui.setWidget(REPORT_KEY, undefined);
+		ctx.ui.setWidget(INITIAL_CONTEXT_KEY, undefined);
 		renderStatus(ctx);
 	});
 
@@ -365,10 +397,45 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 		renderStatus(ctx);
 	});
 
+	pi.on("message_start", (event, ctx) => {
+		if (disabled || !isCopilotModel(ctx.model)) {
+			initialPrompt = null;
+			clearInitialContextWidget(ctx);
+			return;
+		}
+		const prompt = userMessageText(event.message);
+		if (prompt === null) return;
+		if (initialContextWasShown) {
+			initialPrompt = null;
+			clearInitialContextWidget(ctx);
+			return;
+		}
+		if (hasAssistantMessage(ctx)) {
+			initialPrompt = null;
+			return;
+		}
+		if (initialPrompt === null) initialPrompt = prompt;
+	});
+
 	pi.on("before_provider_request", (event, ctx) => {
 		if (disabled || !isCopilotModel(ctx.model)) {
+			initialPrompt = null;
 			clearUi(ctx);
 			return;
+		}
+		if (!initialContextWasShown && !hasAssistantMessage(ctx)) {
+			const files = collectInitialContextFiles({
+				systemPrompt: ctx.getSystemPrompt(),
+				initialPrompt: initialPrompt ?? "",
+				cwd: ctx.cwd,
+				home: process.env.HOME ?? process.env.USERPROFILE,
+			});
+			ctx.ui.setWidget(INITIAL_CONTEXT_KEY, formatInitialContextWidget(files));
+			initialContextWasShown = true;
+			initialContextWidgetVisible = true;
+			initialPrompt = null;
+		} else if (!initialContextWasShown) {
+			initialPrompt = null;
 		}
 		latestRequest = estimateProviderPayload(event.payload, ctx.getContextUsage()?.tokens);
 		renderStatus(ctx);
@@ -385,6 +452,8 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 	pi.on("agent_end", (_event, ctx) => renderStatus(ctx));
 	pi.on("session_tree", (_event, ctx) => {
 		latestRequest = null;
+		initialPrompt = null;
+		clearInitialContextWidget(ctx);
 		renderStatus(ctx);
 	});
 	pi.on("session_compact", (_event, ctx) => renderStatus(ctx));
