@@ -21,7 +21,7 @@ import {
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import {
-	collectInitialContextFiles,
+	collectInitialRequestBreakdown,
 	formatCopilotStatus,
 	formatInitialContextWidget,
 } from "./display.ts";
@@ -130,6 +130,18 @@ function userMessageText(message: AgentMessage): string | null {
 		.filter((content) => content.type === "text")
 		.map((content) => content.text)
 		.join("\n");
+}
+
+function providerToolTokens(payload: unknown): number {
+	if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return 0;
+	const record = payload as Record<string, unknown>;
+	const toolPayload: Record<string, unknown> = {};
+	for (const key of ["tools", "functions"] as const) {
+		if (key in record) toolPayload[key] = record[key];
+	}
+	if (Object.keys(toolPayload).length === 0) return 0;
+	const estimate = estimateProviderPayload(toolPayload);
+	return estimate.ok ? (estimate.tokens ?? 0) : 0;
 }
 
 function nextBaseInputEstimate(pi: ExtensionAPI, ctx: ExtensionContext): number | null {
@@ -345,8 +357,14 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 	const disabled = isCopilotUsageDisabled();
 	let latestRequest: PayloadEstimate | null = null;
 	let initialPrompt: string | null = null;
+	let initialNativeContextFiles: Array<{ path: string; content: string }> | undefined;
 	let initialContextWasShown = false;
 	let initialContextWidgetVisible = false;
+
+	function clearInitialRequestCapture(): void {
+		initialPrompt = null;
+		initialNativeContextFiles = undefined;
+	}
 
 	function clearInitialContextWidget(ctx: ExtensionContext): void {
 		if (!initialContextWidgetVisible) return;
@@ -384,7 +402,7 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", (_event, ctx) => {
 		latestRequest = null;
-		initialPrompt = null;
+		clearInitialRequestCapture();
 		initialContextWasShown = false;
 		initialContextWidgetVisible = false;
 		ctx.ui.setWidget(REPORT_KEY, undefined);
@@ -394,24 +412,46 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 
 	pi.on("model_select", (_event, ctx) => {
 		latestRequest = null;
+		if (disabled || !isCopilotModel(ctx.model)) {
+			clearInitialRequestCapture();
+			clearInitialContextWidget(ctx);
+		}
 		renderStatus(ctx);
+	});
+
+	pi.on("before_agent_start", (event, ctx) => {
+		if (
+			disabled ||
+			!isCopilotModel(ctx.model) ||
+			initialContextWasShown ||
+			hasAssistantMessage(ctx)
+		) {
+			clearInitialRequestCapture();
+			if (initialContextWasShown) clearInitialContextWidget(ctx);
+			return;
+		}
+		initialPrompt = event.prompt;
+		initialNativeContextFiles = (event.systemPromptOptions.contextFiles ?? []).map((file) => ({
+			path: file.path,
+			content: file.content,
+		}));
 	});
 
 	pi.on("message_start", (event, ctx) => {
 		if (disabled || !isCopilotModel(ctx.model)) {
-			initialPrompt = null;
+			clearInitialRequestCapture();
 			clearInitialContextWidget(ctx);
 			return;
 		}
 		const prompt = userMessageText(event.message);
 		if (prompt === null) return;
 		if (initialContextWasShown) {
-			initialPrompt = null;
+			clearInitialRequestCapture();
 			clearInitialContextWidget(ctx);
 			return;
 		}
 		if (hasAssistantMessage(ctx)) {
-			initialPrompt = null;
+			clearInitialRequestCapture();
 			return;
 		}
 		if (initialPrompt === null) initialPrompt = prompt;
@@ -419,25 +459,28 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 
 	pi.on("before_provider_request", (event, ctx) => {
 		if (disabled || !isCopilotModel(ctx.model)) {
-			initialPrompt = null;
+			clearInitialRequestCapture();
 			clearUi(ctx);
 			return;
 		}
+		latestRequest = estimateProviderPayload(event.payload, ctx.getContextUsage()?.tokens);
 		if (!initialContextWasShown && !hasAssistantMessage(ctx)) {
-			const files = collectInitialContextFiles({
+			const breakdown = collectInitialRequestBreakdown({
 				systemPrompt: ctx.getSystemPrompt(),
 				initialPrompt: initialPrompt ?? "",
+				nativeContextFiles: initialNativeContextFiles,
+				requestTokens: latestRequest.ok ? latestRequest.tokens : null,
+				toolTokens: providerToolTokens(event.payload),
 				cwd: ctx.cwd,
 				home: process.env.HOME ?? process.env.USERPROFILE,
 			});
-			ctx.ui.setWidget(INITIAL_CONTEXT_KEY, formatInitialContextWidget(files));
+			ctx.ui.setWidget(INITIAL_CONTEXT_KEY, formatInitialContextWidget(breakdown));
 			initialContextWasShown = true;
 			initialContextWidgetVisible = true;
-			initialPrompt = null;
+			clearInitialRequestCapture();
 		} else if (!initialContextWasShown) {
-			initialPrompt = null;
+			clearInitialRequestCapture();
 		}
-		latestRequest = estimateProviderPayload(event.payload, ctx.getContextUsage()?.tokens);
 		renderStatus(ctx);
 	});
 
@@ -452,7 +495,7 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 	pi.on("agent_end", (_event, ctx) => renderStatus(ctx));
 	pi.on("session_tree", (_event, ctx) => {
 		latestRequest = null;
-		initialPrompt = null;
+		clearInitialRequestCapture();
 		clearInitialContextWidget(ctx);
 		renderStatus(ctx);
 	});

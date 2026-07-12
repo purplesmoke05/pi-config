@@ -4,6 +4,7 @@ import {
 	aggregateHistory,
 	aggregateSessionEntries,
 	estimateProviderPayload,
+	estimateTextTokens,
 	isCopilotModel,
 	isCopilotUsageDisabled,
 	parseOfficialBillingReport,
@@ -67,6 +68,12 @@ describe("provider activation", () => {
 });
 
 describe("outgoing payload estimate", () => {
+	it("estimates model-facing text in token units without JSON framing", () => {
+		assert.equal(estimateTextTokens("a".repeat(8)), 2);
+		assert.equal(estimateTextTokens("あ".repeat(4)), 8);
+		assert.equal(estimateTextTokens("a".repeat(4) + "あ"), 3);
+	});
+
 	it("counts provider input fields without counting base64 image bytes as text", () => {
 		const estimate = estimateProviderPayload({
 			system: "system prompt",

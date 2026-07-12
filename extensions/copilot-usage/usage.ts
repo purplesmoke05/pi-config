@@ -202,10 +202,10 @@ function sanitizePayloadValue(
 	}
 }
 
-function estimateSerializedTextTokens(serialized: string): number {
+export function estimateTextTokens(text: string): number {
 	let asciiCharacters = 0;
 	let nonAsciiCodePoints = 0;
-	for (const character of serialized) {
+	for (const character of text) {
 		if ((character.codePointAt(0) ?? 0) <= 0x7f) asciiCharacters++;
 		else nonAsciiCodePoints++;
 	}
@@ -242,7 +242,7 @@ export function estimateProviderPayload(
 		const serialized = JSON.stringify(sanitized);
 		if (serialized === undefined) throw new TypeError("provider payload could not be serialized");
 		const textCharacters = serialized.length;
-		const payloadTokens = estimateSerializedTextTokens(serialized) + state.images * TOKENS_PER_IMAGE;
+		const payloadTokens = estimateTextTokens(serialized) + state.images * TOKENS_PER_IMAGE;
 		const contextFloor =
 			typeof contextTokenFloor === "number" && Number.isFinite(contextTokenFloor) && contextTokenFloor >= 0
 				? Math.ceil(contextTokenFloor)
