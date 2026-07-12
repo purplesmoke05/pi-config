@@ -85,6 +85,11 @@ describe("first-request token breakdown", () => {
 		const copilotBlock =
 			`<github_copilot_instructions>\n${repositoryInstruction}\n${encodedInstruction}\n` +
 			`${literalEntityInstruction}\n</github_copilot_instructions>`;
+		const activatedInstruction =
+			'<instruction path=".github/instructions/activated.instructions.md" kind="path-specific" applyTo="**/*.ts">\n' +
+			"activated\n</instruction>";
+		const activatedContext =
+			`<github_copilot_instructions>\n${activatedInstruction}\n</github_copilot_instructions>`;
 		const skillsBlock = "<available_skills>\n<skill>read-me</skill>\n</available_skills>";
 		const inputBlock =
 			'<file name="/home/alice/work/project/src/input.ts">\ncontents\n' +
@@ -107,6 +112,7 @@ describe("first-request token breakdown", () => {
 			home: "/home/alice",
 			systemPrompt,
 			initialPrompt: `${inputBlock}\n${rawAttachmentBlock}`,
+			copilotInstructionContext: activatedContext,
 			nativeContextFiles: [
 				{ path: "/home/alice/work/project/AGENTS.md", content: agentsContent },
 				{ path: "/home/alice/work/project/AGENTS.md", content: duplicateAgentsContent },
@@ -147,6 +153,11 @@ describe("first-request token breakdown", () => {
 				kind: "copilot-instruction",
 				path: ".github/instructions/raw&amp;name.instructions.md",
 				tokens: estimateTextTokens(literalEntityInstruction),
+			},
+			{
+				kind: "copilot-instruction",
+				path: ".github/instructions/activated.instructions.md",
+				tokens: estimateTextTokens(activatedInstruction),
 			},
 			{ kind: "attachment", path: "src/input.ts", tokens: estimateTextTokens(inputBlock) },
 			{

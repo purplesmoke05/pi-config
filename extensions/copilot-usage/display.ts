@@ -21,6 +21,7 @@ export interface InitialContextFile {
 export interface InitialRequestBreakdownInput {
 	systemPrompt: string;
 	initialPrompt: string;
+	copilotInstructionContext?: string;
 	nativeContextFiles?: readonly { path: string; content: string }[];
 	requestTokens: number | null;
 	toolTokens: number;
@@ -299,6 +300,15 @@ export function collectInitialRequestBreakdown(
 		.filter((entry) => entry.kind === "copilot-instructions")
 		.map((entry) => entry.block);
 	for (const wrapper of copilotBlocks) {
+		for (const block of extractTagBlocks(wrapper.content, "instruction")) {
+			const path = blockAttribute(block, "path");
+			if (path) addFile("copilot-instruction", path, block.raw, true);
+		}
+	}
+	for (const wrapper of extractTagBlocks(
+		input.copilotInstructionContext ?? "",
+		"github_copilot_instructions",
+	)) {
 		for (const block of extractTagBlocks(wrapper.content, "instruction")) {
 			const path = blockAttribute(block, "path");
 			if (path) addFile("copilot-instruction", path, block.raw, true);

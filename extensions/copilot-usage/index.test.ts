@@ -89,6 +89,38 @@ function showFirstRequestContext(harness: ReturnType<typeof createHarness>): voi
 	});
 }
 
+function showFirstRequestContextWithPathInstruction(harness: ReturnType<typeof createHarness>): void {
+	const prompt = '<file name="/work/project/src/input.ts">\ncontents\n</file>';
+	harness.emit("before_agent_start", {
+		type: "before_agent_start",
+		prompt,
+		systemPrompt: "base prompt before later extensions",
+		systemPromptOptions: {
+			contextFiles: [{ path: "/work/project/AGENTS.md", content: "agent instructions" }],
+		},
+	});
+	harness.emit("message_start", {
+		type: "message_start",
+		message: { role: "user", content: prompt },
+	});
+	harness.emit("message_start", {
+		type: "message_start",
+		message: {
+			role: "custom",
+			customType: "github-copilot-path-instructions",
+			content:
+				"<github_copilot_instructions>\n" +
+				'<instruction path=".github/instructions/typescript.instructions.md" kind="path-specific">\n' +
+				"typescript rules\n</instruction>\n</github_copilot_instructions>",
+			display: true,
+		},
+	});
+	harness.emit("before_provider_request", {
+		type: "before_provider_request",
+		payload: providerPayload(harness),
+	});
+}
+
 describe("Copilot usage extension UI lifecycle", () => {
 	it("does not show Copilot UI for another provider", () => {
 		const harness = createHarness([], "openai");
@@ -155,6 +187,19 @@ describe("Copilot usage extension UI lifecycle", () => {
 			},
 		});
 		assert.equal(harness.widgets.get("copilot-initial-context"), undefined);
+	});
+
+	it("lists path-specific instruction files injected as custom user context", () => {
+		const harness = createHarness();
+		showFirstRequestContextWithPathInstruction(harness);
+
+		const widget = harness.widgets.get("copilot-initial-context") ?? [];
+		assert.equal(widget[0], "Copilot first request · local token estimates · 4 files");
+		assert.ok(
+			widget.some((line) =>
+				/^  \.github\/instructions\/typescript\.instructions\.md ≈\d+ tok$/.test(line),
+			),
+		);
 	});
 
 	it("suppresses the widget when resuming a branch that already has an assistant response", () => {

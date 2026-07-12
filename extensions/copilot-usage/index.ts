@@ -50,6 +50,7 @@ import {
 const STATUS_KEY = "copilot-usage";
 const REPORT_KEY = "copilot-usage-report";
 const INITIAL_CONTEXT_KEY = "copilot-initial-context";
+const PATH_INSTRUCTION_MESSAGE_TYPE = "github-copilot-path-instructions";
 const GITHUB_API_VERSION = "2026-03-10";
 const GH_TIMEOUT_MS = 15_000;
 const GITHUB_LOGIN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)$/;
@@ -125,6 +126,15 @@ function hasAssistantMessage(ctx: ExtensionContext): boolean {
 
 function userMessageText(message: AgentMessage): string | null {
 	if (message.role !== "user") return null;
+	if (typeof message.content === "string") return message.content;
+	return message.content
+		.filter((content) => content.type === "text")
+		.map((content) => content.text)
+		.join("\n");
+}
+
+function copilotInstructionMessageText(message: AgentMessage): string | null {
+	if (message.role !== "custom" || message.customType !== PATH_INSTRUCTION_MESSAGE_TYPE) return null;
 	if (typeof message.content === "string") return message.content;
 	return message.content
 		.filter((content) => content.type === "text")
@@ -358,12 +368,14 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 	let latestRequest: PayloadEstimate | null = null;
 	let initialPrompt: string | null = null;
 	let initialNativeContextFiles: Array<{ path: string; content: string }> | undefined;
+	let initialCopilotInstructionContext: string[] = [];
 	let initialContextWasShown = false;
 	let initialContextWidgetVisible = false;
 
 	function clearInitialRequestCapture(): void {
 		initialPrompt = null;
 		initialNativeContextFiles = undefined;
+		initialCopilotInstructionContext = [];
 	}
 
 	function clearInitialContextWidget(ctx: ExtensionContext): void {
@@ -443,6 +455,11 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 			clearInitialContextWidget(ctx);
 			return;
 		}
+		const instructionContext = copilotInstructionMessageText(event.message);
+		if (instructionContext !== null && !initialContextWasShown && !hasAssistantMessage(ctx)) {
+			initialCopilotInstructionContext.push(instructionContext);
+			return;
+		}
 		const prompt = userMessageText(event.message);
 		if (prompt === null) return;
 		if (initialContextWasShown) {
@@ -468,6 +485,7 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 			const breakdown = collectInitialRequestBreakdown({
 				systemPrompt: ctx.getSystemPrompt(),
 				initialPrompt: initialPrompt ?? "",
+				copilotInstructionContext: initialCopilotInstructionContext.join("\n"),
 				nativeContextFiles: initialNativeContextFiles,
 				requestTokens: latestRequest.ok ? latestRequest.tokens : null,
 				toolTokens: providerToolTokens(event.payload),

@@ -29,6 +29,10 @@
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
   },
+  "dependencies": {
+    "minimatch": "10.2.5",
+    "yaml": "2.9.0"
+  },
   "devDependencies": {
     "@earendil-works/pi-agent-core": "0.80.2",
     "@earendil-works/pi-ai": "0.80.2",
@@ -40,6 +44,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test:copilot-instructions": "node --test --experimental-strip-types extensions/copilot-instructions/index.test.ts",
     "test:copilot-usage": "node --test --experimental-strip-types extensions/copilot-usage/usage.test.ts extensions/copilot-usage/display.test.ts extensions/copilot-usage/index.test.ts",
     "sops:skills": "bash scripts/generate-sop-skills.sh"
   }
