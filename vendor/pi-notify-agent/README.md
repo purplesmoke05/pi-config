@@ -12,8 +12,8 @@ When a pi run takes longer than a configurable threshold, this package notifies 
 ## Features
 
 - **Windows:** native toast + system beep
-- **macOS:** native notification via `osascript` + system beep
-- **Linux:** `notify-send` + sound fallback (`canberra-gtk-play` / `paplay` when available)
+- **macOS:** native notification via `osascript` + distinct `afplay` system sounds
+- **Linux:** `notify-send` + bundled completion chime via `pw-play` or `paplay`, with system-sound fallbacks
 - **Terminal fallback:** Kitty `OSC 99`, otherwise `OSC 777`, plus terminal bell when needed
 - **Attention mode:** emits `BEL` so supporting terminals can flash taskbar, tab, dock, or urgency state
 - **Noise reduction:** default threshold is **3000ms**
@@ -61,7 +61,7 @@ By default the package:
 - waits until the run lasts at least **3000ms**
 - sends notifications for **success**
 - sends notifications for **error**
-- plays **sound** together with the notification
+- plays **sound** with notifications; successful Linux runs use the bundled completion chime when `pw-play` or `paplay` is available
 - emits **BEL attention** together with the notification
 - ignores **aborted** runs
 
@@ -112,8 +112,11 @@ pi install .
 
 ```text
 pi-notify-agent/
+  assets/
+    complete.wav
   extensions/
     index.ts
+    index.test.ts
   package.json
   README.md
   LICENSE
@@ -176,10 +179,10 @@ This is more portable than trying to directly manipulate the OS taskbar/dock fro
 ## Notes
 
 - Linux desktop notifications require a GUI session and usually `notify-send`.
-- Linux sound playback depends on what is installed on the machine.
+- Linux plays the bundled completion chime through `pw-play` first, then `paplay`; error and compatibility fallbacks still use `canberra-gtk-play` or freedesktop sound files.
 - On headless / SSH-only environments the package falls back to terminal notifications / bell.
 - Attention behavior is terminal-dependent; `BEL` is the portable trigger, but the visual effect depends on terminal config.
-- If you want different sounds for success vs error, add that in `extensions/index.ts`.
+- The bundled chime is success-only; errors retain the system event sound so the outcomes remain distinct.
 
 ## License
 

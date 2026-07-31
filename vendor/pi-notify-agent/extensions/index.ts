@@ -1,6 +1,7 @@
 import { execFile, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, TextContent } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -12,10 +13,12 @@ const LINUX_SOUND_FILES = [
 	"/usr/share/sounds/freedesktop/stereo/message.oga",
 	"/usr/share/sounds/freedesktop/stereo/bell.oga",
 ];
+export const BUNDLED_SUCCESS_SOUND_FILE = fileURLToPath(new URL("../assets/complete.wav", import.meta.url));
 
 type AgentOutcome = "success" | "error" | "aborted" | "other";
 type NotifyKind = "success" | "error";
 type SoundPlayback = "external" | "terminal-bell";
+type SoundCommand = { command: string; args: string[] };
 
 const commandExistsCache = new Map<string, boolean>();
 
@@ -45,6 +48,31 @@ function commandExists(command: string): boolean {
 	const exists = result.status === 0;
 	commandExistsCache.set(command, exists);
 	return exists;
+}
+
+export function resolveLinuxSoundCommand(
+	kind: NotifyKind,
+	isCommandAvailable: (command: string) => boolean = commandExists,
+	isFileAvailable: (file: string) => boolean = existsSync,
+): SoundCommand | null {
+	if (kind === "success" && isFileAvailable(BUNDLED_SUCCESS_SOUND_FILE)) {
+		for (const command of ["pw-play", "paplay"]) {
+			if (isCommandAvailable(command)) {
+				return { command, args: [BUNDLED_SUCCESS_SOUND_FILE] };
+			}
+		}
+	}
+
+	if (isCommandAvailable("canberra-gtk-play")) {
+		return { command: "canberra-gtk-play", args: ["-i", "complete"] };
+	}
+
+	const systemSoundFile = LINUX_SOUND_FILES.find((file) => isFileAvailable(file));
+	if (systemSoundFile && isCommandAvailable("paplay")) {
+		return { command: "paplay", args: [systemSoundFile] };
+	}
+
+	return null;
 }
 
 function hasDesktopSession(): boolean {
@@ -186,14 +214,9 @@ function playSound(kind: NotifyKind): SoundPlayback {
 	}
 
 	if (isLinux()) {
-		if (commandExists("canberra-gtk-play")) {
-			runDetached("canberra-gtk-play", ["-i", "complete"]);
-			return "external";
-		}
-
-		const soundFile = LINUX_SOUND_FILES.find((file) => existsSync(file));
-		if (soundFile && commandExists("paplay")) {
-			runDetached("paplay", [soundFile]);
+		const soundCommand = resolveLinuxSoundCommand(kind);
+		if (soundCommand) {
+			runDetached(soundCommand.command, soundCommand.args);
 			return "external";
 		}
 	}

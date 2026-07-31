@@ -21,7 +21,8 @@
     "coding-agent"
   ],
   "files": [
-    "extensions",
+    "extensions/index.ts",
+    "assets",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
