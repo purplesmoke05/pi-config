@@ -1,0 +1,54 @@
+{
+  "name": "pi-smart-fetch",
+  "version": "0.3.17",
+  "type": "module",
+  "description": "Smart public web fetching for pi with Node transport and Defuddle extraction.",
+  "license": "MIT",
+  "main": "./index.ts",
+  "files": [
+    "index.ts",
+    "settings.ts",
+    "core",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "defuddle": "0.19.2",
+    "linkedom": "0.18.13",
+    "typebox": "1.2.8"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "engines": {
+    "node": ">=24.18.0"
+  },
+  "x-upstream": {
+    "repository": "https://github.com/Thinkscape/agent-smart-fetch",
+    "version": "0.3.17",
+    "commit": "b01116124971de44f16a4477e34c06ba2ab1d0bf",
+    "integrity": "sha512-RgU1hNF4AHdUZcRHbXQ1TfSLWheFCJixzmiTEJEm+Ug4vKxdn6Rb1BRmkZpbuzDDTnkiRJ/KXIxm7zA0NEUBIg==",
+    "sourceSha256": "26717eefd4cfb598f5ecced83fcb5580a734d4d6a9cd0af51ed29f72bee12144"
+  },
+  "x-vendor-patch": {
+    "transport": "node:http+node:https",
+    "dnsPolicy": "all-answers-public-and-pinned",
+    "redirectPolicy": "manual-per-hop-max-5",
+    "bodyLimits": {
+      "textBytes": 5242880,
+      "fileBytes": 52428800
+    },
+    "htmlLimits": {
+      "elements": 50000,
+      "nestingDepth": 256
+    },
+    "extractionIsolation": "worker_threads"
+  }
+}

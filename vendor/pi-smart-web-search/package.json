@@ -1,0 +1,105 @@
+{
+  "name": "pi-smart-web-search",
+  "version": "0.4.0",
+  "description": "Audited, locally hardened batch web search for the pi coding agent. Requires the vendored pi-smart-fetch.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "web-search"
+  ],
+  "license": "MIT",
+  "author": "Joe Matthews",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joematthews/pi-smart-web-search.git"
+  },
+  "homepage": "https://pi.dev/packages/pi-smart-web-search",
+  "bugs": {
+    "url": "https://github.com/joematthews/pi-smart-web-search/issues"
+  },
+  "type": "module",
+  "main": "./index.ts",
+  "files": [
+    "index.ts",
+    "markdown.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24.18.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "spell": "cspell --no-progress \"**/*\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run spell && npm run test"
+  },
+  "lint-staged": {
+    "*.{ts,mjs,cjs,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,jsonc,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "linkedom": "0.18.13"
+  },
+  "devDependencies": {
+    "@cspell/dict-bash": "^4.2.3",
+    "@cspell/dict-en_us": "^4.4.36",
+    "@cspell/dict-html": "^4.0.15",
+    "@cspell/dict-markdown": "^2.0.17",
+    "@cspell/dict-node": "^5.0.9",
+    "@cspell/dict-npm": "^5.2.43",
+    "@cspell/dict-software-terms": "^5.2.4",
+    "@cspell/dict-typescript": "^3.2.3",
+    "@eslint/js": "^10.0.1",
+    "@eslint/markdown": "^8.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
+    "cspell": "^10.0.1",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-repertoire": "^0.1.0",
+    "husky": "^9.1.7",
+    "jsonc-eslint-parser": "^3.1.0",
+    "lint-staged": "^17.2.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10",
+    "yaml-eslint-parser": "^2.1.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "pi-smart-fetch": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/joematthews/pi-smart-web-search/main/demo.png"
+  },
+  "x-vendored-from": {
+    "version": "0.4.0",
+    "commit": "41e061a28e42fba8a8440c2541c1f92f6342456c",
+    "npmIntegrity": "sha512-ND08rQytHq5jbacg7g1NNKn5iHsgAYUEOclzNzIQWiRaV7Z4uaXWLbLMu7WslUhrIhT1mJVn373x+GpV73LWxA=="
+  },
+  "x-vendor-patch": {
+    "transport": "shared-public-network-only-node-http",
+    "endpoint": "https://html.duckduckgo.com/html/",
+    "bodyBytes": 1048576,
+    "extractor": "validated-result-dom-only"
+  }
+}
