@@ -6,6 +6,9 @@
     "pi-package"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=24.18.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/purplesmoke05/pi-config"
@@ -16,7 +19,18 @@
       "./extensions",
       "./vendor/pi-rtk-optimizer/index.ts",
       "./vendor/pi-ollama-cloud-provider/extensions/ollama-cloud/index.ts",
-      "./vendor/pi-notify-agent/extensions/index.ts"
+      "./vendor/pi-notify-agent/extensions/index.ts",
+      "./vendor/pi-extension-workbook/index.ts",
+      "./vendor/pi-smart-fetch/index.ts",
+      "./vendor/pi-smart-web-search/index.ts",
+      "./vendor/rpiv-ask-user-question/index.ts",
+      "./vendor/context-mode/build/adapters/pi/extension.js",
+      "./vendor/pi-dynamic-workflows/extensions/workflow.ts"
+    ],
+    "skills": [
+      "./vendor/pi-extension-workbook/skills",
+      "./vendor/context-mode/skills",
+      "./vendor/pi-dynamic-workflows/skills"
     ],
     "prompts": [
       "./prompts"
@@ -26,27 +40,45 @@
     "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*",
-    "typebox": "*"
+    "@earendil-works/pi-tui": "*"
   },
   "dependencies": {
+    "@mixmark-io/domino": "2.2.0",
+    "@xmldom/xmldom": "0.9.10",
+    "acorn": "8.16.0",
+    "defuddle": "0.19.2",
+    "fflate": "0.8.3",
+    "linkedom": "0.18.13",
     "minimatch": "10.2.5",
+    "turndown": "7.2.4",
+    "turndown-plugin-gfm": "1.0.2",
+    "typebox": "1.2.8",
     "yaml": "2.9.0"
   },
   "devDependencies": {
-    "@earendil-works/pi-agent-core": "0.80.2",
-    "@earendil-works/pi-ai": "0.80.2",
-    "@earendil-works/pi-coding-agent": "0.80.2",
-    "@earendil-works/pi-tui": "0.80.2",
+    "@biomejs/biome": "2.4.16",
+    "@earendil-works/pi-agent-core": "0.80.10",
+    "@earendil-works/pi-ai": "0.80.10",
+    "@earendil-works/pi-coding-agent": "0.80.10",
+    "@earendil-works/pi-tui": "0.80.10",
     "@types/node": "^22.0.0",
-    "typebox": "^1.2.8",
+    "fast-check": "4.8.0",
+    "tsx": "4.22.3",
     "typescript": "^5.7.0"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.9"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:copilot-instructions": "node --test --experimental-strip-types extensions/copilot-instructions/index.test.ts",
     "test:copilot-usage": "node --test --experimental-strip-types extensions/copilot-usage/usage.test.ts extensions/copilot-usage/display.test.ts extensions/copilot-usage/index.test.ts",
     "test:notify": "node --test --experimental-strip-types vendor/pi-notify-agent/extensions/index.test.ts",
+    "test:web": "node --test --experimental-strip-types vendor/pi-smart-fetch/*.test.ts vendor/pi-smart-fetch/core/*.test.ts vendor/pi-smart-web-search/*.test.ts",
+    "test:ask-user": "node --test --experimental-strip-types vendor/rpiv-ask-user-question/*.test.ts vendor/rpiv-ask-user-question/state/*.test.ts",
+    "test:context-mode": "node --test vendor/context-mode/vendor-policy.test.mjs",
+    "test:dynamic-workflows": "node --test vendor/pi-dynamic-workflows/vendor-policy.test.mjs && npm --prefix vendor/pi-dynamic-workflows run test:unit",
+    "typecheck:dynamic-workflows": "tsc -p vendor/pi-dynamic-workflows/tsconfig.json --noEmit && tsc -p vendor/pi-dynamic-workflows/tsconfig.scripts.json --noEmit",
     "sops:skills": "bash scripts/generate-sop-skills.sh"
   }
 }

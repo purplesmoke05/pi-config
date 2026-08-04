@@ -9,5 +9,10 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["extensions/**/*.ts", "vendor/**/*.ts"]
+  "include": ["extensions/**/*.ts", "vendor/**/*.ts"],
+  "exclude": [
+    "vendor/context-mode/source/**/*.ts",
+    "vendor/pi-lens/source/**/*.ts",
+    "vendor/pi-dynamic-workflows/tests/**/*.ts"
+  ]
 }
