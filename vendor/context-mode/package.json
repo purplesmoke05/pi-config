@@ -1,0 +1,49 @@
+{
+  "name": "context-mode",
+  "version": "1.0.169",
+  "description": "Audited and locally hardened context-mode runtime for Pi",
+  "type": "module",
+  "private": true,
+  "license": "Elastic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mksglu/context-mode"
+  },
+  "pi": {
+    "extensions": [
+      "./build/adapters/pi/extension.js"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "dependencies": {
+    "@mixmark-io/domino": "2.2.0",
+    "turndown": "7.2.4",
+    "turndown-plugin-gfm": "1.0.2"
+  },
+  "x-vendored-from": {
+    "version": "1.0.169",
+    "commit": "589d8214d56740a28b5f7bf63167743d586b0b40",
+    "tag": "v1.0.169",
+    "npmShasum": "d5aa9acc648ed420c5dd32ee5f15aa5608f09fea",
+    "npmIntegrity": "sha512-94JIaFuLjF9SO2BsGTrbGtyT44K95+9OC8BdbaL/UT76xOkanJLfUR5CzmNw+GELXZQqH4nBrKg9wjBnSFkVnQ=="
+  },
+  "x-vendor-artifacts": {
+    "serverBundleSha256": "8c55c11a278f64ead6f27e34270a48ae07f5a0c6f3f1ec35287ebb882b28f446",
+    "piExtensionBundleSha256": "b99e6c3d4bfaafa55ea3ccc966b878cc6036431ac459397118f2a9b0b0752489",
+    "upstreamBunLockSha256": "310d4ae12ca0d37a4ae1325cfb5112a607e6789fc15d9bfc700b77af7380be8b"
+  },
+  "x-vendor-policy": {
+    "selfUpdate": false,
+    "automaticInstall": false,
+    "automaticCacheRepair": false,
+    "automaticPersistentCleanup": false,
+    "strictPublicNetworkFetch": true,
+    "disabledTools": [
+      "ctx_upgrade",
+      "ctx_insight",
+      "ctx_purge"
+    ]
+  }
+}

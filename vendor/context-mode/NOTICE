@@ -1,0 +1,12 @@
+MODIFICATION NOTICE
+
+This is a modified version of context-mode 1.0.169, originally licensed by
+Mert Koseoğlu under the Elastic License 2.0. The original license is included
+in LICENSE.
+
+The local version removes update discovery, automatic installation/repair,
+model-callable upgrade/browser/destructive tools, and implicit persistent-data
+retention cleanup. It forces strict public-network fetch policy and strips
+credential and code-injection environment variables from active child-process
+boundaries. The exact modified TypeScript is retained under source/ and the
+runtime artifacts are rebuilt from it.
