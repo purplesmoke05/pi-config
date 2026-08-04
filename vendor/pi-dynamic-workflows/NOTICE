@@ -1,0 +1,19 @@
+pi-dynamic-workflows 3.5.0
+Copyright (c) Quintin Shaw, Michaelliv, and pi-dynamic-workflows contributors
+Licensed under the MIT License; see LICENSE.
+
+This directory contains a modified, audited source distribution maintained by
+the pi-config project. It is not the unmodified npm package. The upstream source
+is pinned to commit 356ea76836d04bcd2e9cbc09b289d5f18f732c65 (tag v3.5.0).
+
+Material local changes include explicit approval for arbitrary custom Node.js
+workflow code; rejection of hidden nested scripts; built-in workflow
+precedence and default-off keyword triggering;
+reviewed public-network-only web transport; restricted deep-research tools;
+project-agent trust checks; fail-closed worktree and toolset handling; safe
+run identifiers; removal of repository-local legacy state; private state-file
+permissions; and hardened Git revision arguments. Full provenance and policy
+are recorded in package.json, README.md, and SOURCE-PATCHES.md.
+
+Custom workflow scripts remain arbitrary same-user Node.js code after the user
+approves the displayed script. Node's vm API is not a security sandbox.

@@ -1,0 +1,128 @@
+{
+  "name": "@quintinshaw/pi-dynamic-workflows",
+  "version": "3.5.0",
+  "description": "Audited and locally hardened dynamic workflow orchestration for Pi",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24.18.0"
+  },
+  "scripts": {
+    "test": "npm run check && npm run release:check",
+    "test:unit": "tsx --test tests/**/*.test.ts",
+    "release:check": "npm run build && npm run docs:check && npm run context:check && npm run test:unit && npm run release:verify",
+    "release:verify": "tsx scripts/check-workflow-release.ts",
+    "check": "biome check . && npm run check:scripts",
+    "check:scripts": "tsc -p tsconfig.scripts.json",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "build": "tsc --noEmit",
+    "docs:generate": "tsx scripts/generate-workflow-capabilities.ts",
+    "docs:check": "tsx scripts/generate-workflow-capabilities.ts --check",
+    "context:generate": "tsx scripts/generate-workflow-context-measurement.ts",
+    "context:check": "tsx scripts/generate-workflow-context-measurement.ts --check",
+    "guidance:generate": "tsx scripts/generate-workflow-guidance-baseline.ts",
+    "guidance:check": "tsx scripts/generate-workflow-guidance-baseline.ts --check",
+    "guidance:accept": "tsx scripts/accept-workflow-guidance.ts",
+    "comprehension": "tsx scripts/run-workflow-comprehension.ts",
+    "delivery-choice": "tsx scripts/run-workflow-delivery-choice.ts",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run release:check"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "workflow",
+    "workflows",
+    "dynamic-workflows",
+    "orchestration",
+    "subagents",
+    "multi-agent",
+    "agents",
+    "ai-agents",
+    "parallel",
+    "fan-out",
+    "claude-code",
+    "deep-research",
+    "code-review",
+    "llm"
+  ],
+  "pi": {
+    "extensions": [
+      "extensions/workflow.ts"
+    ],
+    "skills": [
+      "skills/workflow-authoring",
+      "skills/workflow-patterns"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuintinShaw/pi-dynamic-workflows.git"
+  },
+  "author": "QuintinShaw",
+  "contributors": [
+    "michaelliv (original author)"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "acorn": "8.16.0",
+    "typebox": "1.2.8"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": ">=0.80.8",
+    "@earendil-works/pi-tui": ">=0.80.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.16",
+    "@earendil-works/pi-ai": "0.80.10",
+    "@earendil-works/pi-coding-agent": "0.80.10",
+    "@earendil-works/pi-tui": "0.80.10",
+    "@types/node": "22.19.21",
+    "fast-check": "4.8.0",
+    "tsx": "4.22.3",
+    "typescript": "5.9.3"
+  },
+  "x-vendored-from": {
+    "version": "3.5.0",
+    "tag": "v3.5.0",
+    "commit": "356ea76836d04bcd2e9cbc09b289d5f18f732c65",
+    "npmShasum": "668750d4053e5f446da810139000c916c623d472",
+    "npmIntegrity": "sha512-B/uq11yAxDECfEVL4D/bmO84+Hf/+RrdNEB2z6bnpzkh5yF2zTZiIhuHtZ/Dh2a7EO95xBrjeCPsm220NnFnXg==",
+    "npmTarballSha256": "b6c248aae5b09dc6d74cdb84367000da7e314cfa101c582a67b35f781cddb42c",
+    "npmProvenance": true,
+    "npmSignatureKeyId": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+  },
+  "x-vendor-artifacts": {
+    "runtimeManifestSha256": "25bcbf8c1e230ffb3bd8b81288bbeb7d0f41f6058820163aab2af862380c597b",
+    "sourceManifestSha256": "4559b2855321a5d259ed725194ddbd78f88e9e146bda9cfa3c0b105abd1e2697",
+    "upstreamPackageLockSha256": "b99acc33588a4147629616ffa85794f4bc288c384019272dbdeccca72629c05e",
+    "readmeSha256": "87ed82bdf2ac8f64295c4707e84971fd03b5c372b66b6c7d8482288ccf88f2ff",
+    "noticeSha256": "fb65826408c0fcc75bb94833f0e386c55d13597f124a3f0b520b6a47099b19b5",
+    "sourcePatchesSha256": "63f9afc1ce1cdb20f6419c20e481233bf3d72e6eea81bb405ef338cdb2e5cd59",
+    "publicHttpConstantsSha256": "4b55a7e04b3a394dfc07ec46c674ebc4d571cab8891b46f093341ee586a80dfa",
+    "publicHttpTypesSha256": "98ad66a6481eacd7b93f83b81e447e1334e6524096d59b3e7483bb1e7a8bea4b",
+    "publicHttpPolicySha256": "81c184ffff25053223438d8b89e731d4f8522b7dd7e63e2111a987a83ed5ab35",
+    "publicHttpTransportSha256": "a36cf1f91720c3ab3d2af07e2414746624ccad628564fbdb5026669a58b6fc49"
+  },
+  "x-vendor-policy": {
+    "vmSecuritySandbox": false,
+    "activeRuntimePackageJsonImport": false,
+    "customWorkflowApprovalRequired": true,
+    "nestedWorkflowExecution": false,
+    "headlessCustomWorkflowExecution": false,
+    "customWorkflowAutoResume": false,
+    "keywordTriggerDefaultEnabled": false,
+    "builtinWorkflowPrecedence": true,
+    "projectAgentsRequireHostTrust": true,
+    "sharedCheckoutWorktreeFallback": false,
+    "unknownToolsetFallback": false,
+    "projectLocalLegacyPersistence": false,
+    "deepResearchToolset": "web-only",
+    "publicHttpTransport": "../pi-smart-fetch/core/public-http.ts",
+    "stateDirectoryMode": "0700",
+    "stateFileMode": "0600"
+  }
+}
