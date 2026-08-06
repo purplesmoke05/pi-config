@@ -36,6 +36,8 @@ Or add to `~/.pi/agent/settings.json`:
 | `vendor/rpiv-ask-user-question/` | vendored extension | Audited copy of `@juicesharp/rpiv-ask-user-question@2.3.1`; structured multi-question overlays with reviewed local config and external-editor bridges |
 | `vendor/context-mode/` | vendored extension + skills | Modified, audited `context-mode@1.0.169`; local MCP execution/index/search with update/install paths removed and strict child-process boundaries |
 | `vendor/pi-dynamic-workflows/` | vendored extension + skills | Modified, audited `@quintinshaw/pi-dynamic-workflows@3.5.0`; explicitly approved JavaScript orchestration, resumable subagents, fail-closed worktrees, and restricted web research |
+| `vendor/pi-powerline-footer/` | vendored extension | Reviewed copy of `pi-powerline-footer@0.6.1`; powerline-style status bar with configurable status-item placement |
+| `vendor/pi-tool-display/` | vendored extension | Reviewed copy of `pi-tool-display@0.5.0`; compact tool-call rendering, diff visualization, and output truncation, with the upstream postinstall hook removed |
 | `agent-sops/` | Agent SOPs | Recurring maintenance procedures for this repo as [Agent SOPs](https://github.com/strands-agents/agent-sop), served to Claude Code via `.mcp.json` |
 | `prompts/` | prompt templates | Empty for now |
 
@@ -249,6 +251,32 @@ Review notes:
 - Local patches (this repo only): `import type` specifiers and `peerDependencies` migrated from `@mariozechner/pi-*` to `@earendil-works/pi-*` so the vendored sources typecheck and load under this package's pi runtime. The upstream preview image remains unvendored; `assets` now packages this repo's original completion chime. Linux success notifications prefer that chime through `pw-play` or `paplay`, then retain the upstream fallbacks. Additionally, macOS sound is patched to play a distinct system sound per outcome via `afplay` (`Glass` on success, `Basso` on error) instead of the single `osascript beep`, so failures are audible — upstream's README explicitly invites this edit. Override the sound names with `PI_NOTIFY_SUCCESS_SOUND` / `PI_NOTIFY_ERROR_SOUND` (any name in `/System/Library/Sounds/`, e.g. `Hero`, `Submarine`, `Funk`); missing sound falls back to `beep`. Windows is unchanged.
 
 Runtime commands: `/notify-test` (or `/notify-test error`) emits a sample notification, `/notify-status` shows the active flags. Flags: `--notify-min-ms`, `--notify-success`, `--notify-error`, `--notify-sound`, `--notify-attention` (all `on`/`off`, default threshold 3000ms). Linux success uses `assets/complete.wav`; macOS sound names remain configurable through `PI_NOTIFY_SUCCESS_SOUND` / `PI_NOTIFY_ERROR_SOUND` (default `Glass` / `Basso`).
+
+## Powerline Footer Vendor Notes
+
+`pi-powerline-footer@0.6.1` is vendored under `vendor/pi-powerline-footer/` so the footer extension that replaces pi's built-in status bar stays under this package's review boundary instead of changing under a floating npm install.
+
+Review notes:
+
+- Upstream is pinned to tag `v0.6.1` / commit `3bdc81eb58bcbf6778cb36434642c735b06f0b1b`; the npm registry `gitHead` matches the tag, and the installed source matches the tag (the npm package omits only `banner.png`, `package-lock.json`, and `tests/`).
+- No runtime `dependencies`; only `peerDependencies` on pi packages. No npm install scripts.
+- No network access: no `fetch`/`http`/`https`/`net`/websocket usage anywhere in the source.
+- Process execution is limited to a local `git` spawn for branch/dirty status (`git-status.ts`). Filesystem reads: `~/.pi/agent/settings.json`, theme files, shell history. Filesystem writes: working-vibes cache and stash history under `~/.pi/agent/powerline-footer/`, plus settings writes for preset selection.
+- Local patches (this repo only): `peerDependencies` widened to `*` (upstream range stops at pi 0.76); the `complete` import moved to `@earendil-works/pi-ai/compat` (no longer exported from the main entry); type-drift fixes for the current pi baseline — `KeyId`-typed keybindings, the `AutocompleteProvider` interface (async `getSuggestions`), private `Editor` methods (`cancelAutocomplete`, `undo`), the removed `getThinkingLevel` on `ExtensionContext` (degrades to `null`), and a `PowerlineConfig` default that now includes `segmentOptions`.
+- Runtime: replaces the built-in footer. `powerline.customItems` in `~/.pi/agent/settings.json` places any extension status key (e.g. `copilot-credit`) at `left`/`right`/`secondary`; `hideWhenMissing` hides it when the key is unset.
+
+## Tool Display Vendor Notes
+
+`pi-tool-display@0.5.0` is vendored under `vendor/pi-tool-display/` because its published package ships a `postinstall` hook that executes a script when installed under `/.pi/agent/extensions/` — an arbitrary-code-execution surface at install time that this package's review boundary should not inherit.
+
+Review notes:
+
+- Upstream is pinned to tag `v0.5.0` / commit `91cef7580078371f8dc49a8607222807ad6a424d`; the npm registry `gitHead` matches the tag, and the installed source matches the tag modulo whitespace (tabs vs spaces) and the excluded `.npmignore`/`package-lock.json`.
+- No runtime `dependencies`; only `peerDependencies` on pi packages.
+- **Upstream `postinstall` removed**: it ran `../../scripts/patch-vulnerable-deps.mjs` when the install path contained `/.pi/agent/extensions/`. That script is not shipped by the package, so the hook was inert in practice, but it is still a latent code-execution surface; the vendored copy deletes it.
+- No network access: no `fetch`/`http`/`https`/`net`/websocket usage anywhere in the source. No subprocess spawns.
+- Filesystem: reads config and pending-diff preview files; writes debug logs and config under the pi agent directory.
+- Local patches (this repo only): `postinstall` removed; `peerDependencies` widened to `*`; the unused compiled `tool-display-api-consumer.js`/`.d.ts` and its `exports` entry removed; type-drift fixes for the current pi baseline (optional `renderCall`/`context` signatures, `context.cwd` null-safety, `this` typing in the user-message-box renderer).
 
 ## Agent SOPs
 

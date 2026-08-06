@@ -25,7 +25,9 @@
       "./vendor/pi-smart-web-search/index.ts",
       "./vendor/rpiv-ask-user-question/index.ts",
       "./vendor/context-mode/build/adapters/pi/extension.js",
-      "./vendor/pi-dynamic-workflows/extensions/workflow.ts"
+      "./vendor/pi-dynamic-workflows/extensions/workflow.ts",
+      "./vendor/pi-powerline-footer/index.ts",
+      "./vendor/pi-tool-display/index.ts"
     ],
     "skills": [
       "./vendor/pi-extension-workbook/skills",
