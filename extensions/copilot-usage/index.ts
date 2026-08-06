@@ -6,6 +6,12 @@
  * logged. Historical totals come from Pi's session files. The extension never
  * reads Pi or GitHub credential files. `/copilot-usage official` delegates an
  * explicit account-level billing lookup to the already-authenticated `gh` CLI.
+ * The current-month premium-request quota is read from the same `gh` CLI via
+ * the `copilot_internal/user` endpoint and cached for 60 seconds. A compact
+ * credit-only status (`copilot-credit`) in GitHub Copilot CLI style
+ * (`Plan: 207/300 (69% used) · Session: 2.12 AIC used · 5.5 AIC/day`) is published
+ * alongside the token status so a footer extension such as pi-powerline-footer
+ * can pin it to the top-right of the input.
  *
  * Disable with PI_COPILOT_USAGE_DISABLE=1.
  */
@@ -24,6 +30,11 @@ import {
 	collectInitialRequestBreakdown,
 	formatCopilotStatus,
 	formatInitialContextWidget,
+	perDaySegment,
+	planSegment,
+	quotaPerDayLine,
+	quotaReportLines,
+	sessionSegment,
 } from "./display.ts";
 import {
 	PRICING_SNAPSHOT_DATE,
@@ -35,9 +46,12 @@ import {
 	estimateProviderPayload,
 	isCopilotModel,
 	isCopilotUsageDisabled,
+	japaneseHolidays,
+	parseCopilotQuota,
 	parseOfficialBillingReport,
 	parseSessionJsonl,
 	parseUtcMonth,
+	type CopilotQuota,
 	type HistoryAggregate,
 	type OfficialBillingSummary,
 	type PayloadEstimate,
@@ -48,12 +62,15 @@ import {
 } from "./usage.ts";
 
 const STATUS_KEY = "copilot-usage";
+const CREDIT_KEY = "copilot-credit";
 const REPORT_KEY = "copilot-usage-report";
 const INITIAL_CONTEXT_KEY = "copilot-initial-context";
 const PATH_INSTRUCTION_MESSAGE_TYPE = "github-copilot-path-instructions";
 const GITHUB_API_VERSION = "2026-03-10";
 const GH_TIMEOUT_MS = 15_000;
 const GITHUB_LOGIN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)$/;
+const QUOTA_PATH = "copilot_internal/user";
+const QUOTA_CACHE_TTL_MS = 60_000;
 
 interface LocalHistoryResult {
 	history: HistoryAggregate;
@@ -62,6 +79,10 @@ interface LocalHistoryResult {
 
 type OfficialResult =
 	| { status: "ok"; login: string; summary: OfficialBillingSummary }
+	| { status: "error"; error: string };
+
+type QuotaResult =
+	| { status: "ok"; value: CopilotQuota }
 	| { status: "error"; error: string };
 
 type CommandRequest =
@@ -89,6 +110,24 @@ function inputTokens(totals: UsageTotals): number {
 
 function creditEstimate(totals: UsageTotals): string {
 	return `≈${credits(totals.grossCredits)} cr${totals.creditsComplete ? "" : " +?"}`;
+}
+
+/** Credit-only status in GitHub Copilot CLI style, plus the per-day budget. */
+function creditStatus(
+	totals: UsageTotals,
+	quota: CopilotQuota | null | undefined,
+	period: UtcMonthPeriod,
+	now: Date,
+	holidays: ReadonlySet<string>,
+): string {
+	const plan = planSegment(quota);
+	const session = sessionSegment(totals);
+	let text = plan ? `${plan} · ${session}` : session;
+	if (quota) {
+		const perDay = perDaySegment(quota, period, now, holidays);
+		if (perDay) text += ` · ${perDay}`;
+	}
+	return text;
 }
 
 function formatPeriod(period: UtcMonthPeriod): string {
@@ -192,19 +231,65 @@ async function scanLocalHistory(period: UtcMonthPeriod): Promise<LocalHistoryRes
 	return { history, errors };
 }
 
-function ghFailure(code: number, stderr: string, stage: "login" | "billing"): string {
+function ghFailure(code: number, stderr: string, stage: "login" | "billing" | "quota"): string {
 	const lower = stderr.toLowerCase();
 	if (lower.includes("http 403") || lower.includes("status 403")) {
-		return "GitHub Billing API returned 403; check classic-PAT and account billing permissions";
+		return stage === "quota"
+			? "GitHub Copilot usage API returned 403; check token and Copilot entitlement"
+			: "GitHub Billing API returned 403; check classic-PAT and account billing permissions";
 	}
 	if (lower.includes("http 404") || lower.includes("status 404")) {
-		return "GitHub Billing API returned 404; the individual billing report may not apply to this account";
+		return stage === "quota"
+			? "GitHub Copilot usage API returned 404; the account may lack Copilot entitlement"
+			: "GitHub Billing API returned 404; the individual billing report may not apply to this account";
 	}
 	if (lower.includes("http 400") || lower.includes("http 422")) {
-		return "GitHub Billing API rejected the requested month";
+		return stage === "quota"
+			? "GitHub Copilot usage API rejected the request (400/422)"
+			: "GitHub Billing API rejected the requested month";
 	}
 	if (stage === "login") return `gh is not authenticated for github.com (exit ${code})`;
+	if (stage === "quota") return `gh api failed while reading GitHub Copilot quota (exit ${code})`;
 	return `gh api failed while reading GitHub billing (exit ${code})`;
+}
+
+async function fetchCopilotQuota(pi: ExtensionAPI): Promise<QuotaResult> {
+	let result: Awaited<ReturnType<ExtensionAPI["exec"]>>;
+	try {
+		result = await pi.exec(
+			"gh",
+			[
+				"api",
+				"--hostname",
+				"github.com",
+				"--method",
+				"GET",
+				"-H",
+				"Accept: application/vnd.github+json",
+				"-H",
+				`X-GitHub-Api-Version: ${GITHUB_API_VERSION}`,
+				QUOTA_PATH,
+			],
+			{ timeout: GH_TIMEOUT_MS },
+		);
+	} catch {
+		return { status: "error", error: "gh api could not start or timed out" };
+	}
+	if (result.code !== 0) {
+		return { status: "error", error: ghFailure(result.code, result.stderr, "quota") };
+	}
+
+	let payload: unknown;
+	try {
+		payload = JSON.parse(result.stdout) as unknown;
+	} catch {
+		return { status: "error", error: "GitHub Copilot usage API returned invalid JSON" };
+	}
+	const parsed = parseCopilotQuota(payload);
+	if (!parsed.ok) {
+		return { status: "error", error: `invalid GitHub Copilot quota response: ${parsed.error}` };
+	}
+	return { status: "ok", value: parsed.value };
 }
 
 async function fetchOfficialBilling(
@@ -286,6 +371,9 @@ function buildReport(
 	local: LocalHistoryResult,
 	official: OfficialResult | null,
 	latestRequest: PayloadEstimate | null,
+	quota: QuotaResult | null,
+	now: Date,
+	holidays: ReadonlySet<string>,
 ): string[] {
 	const { history, errors } = local;
 	const lines = [
@@ -353,6 +441,18 @@ function buildReport(
 		for (const warning of official.summary.warnings.slice(0, 3)) lines.push(`  warning: ${warning}`);
 	}
 
+	lines.push("", "GitHub Copilot monthly quota:");
+	if (!quota) {
+		lines.push("  not requested · run /copilot-usage");
+	} else if (quota.status === "error") {
+		lines.push(`  unavailable: ${quota.error}`);
+	} else {
+		lines.push(...quotaReportLines(quota.value));
+		const perDay = quotaPerDayLine(quota.value, currentUtcMonth(now), now, holidays);
+		if (perDay) lines.push(perDay);
+		lines.push("  quota is from gh's account; it may differ from Pi's Copilot account");
+	}
+
 	lines.push(
 		"",
 		`Local credits use Pi's recorded list-price cost; ${PRICING_EFFECTIVE_FROM}+ long-context calls use the ${PRICING_SNAPSHOT_DATE} GitHub table.`,
@@ -371,6 +471,16 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 	let initialCopilotInstructionContext: string[] = [];
 	let initialContextWasShown = false;
 	let initialContextWidgetVisible = false;
+	let quotaCache: { fetchedAt: number; result: QuotaResult } | null = null;
+	let quotaRefresh: Promise<QuotaResult> | null = null;
+	let holidaysCache: { year: number; holidays: Set<string> } | null = null;
+
+	function holidaysForYear(year: number): Set<string> {
+		if (!holidaysCache || holidaysCache.year !== year) {
+			holidaysCache = { year, holidays: japaneseHolidays(year) };
+		}
+		return holidaysCache.holidays;
+	}
 
 	function clearInitialRequestCapture(): void {
 		initialPrompt = null;
@@ -386,8 +496,38 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 
 	function clearUi(ctx: ExtensionContext): void {
 		ctx.ui.setStatus(STATUS_KEY, undefined);
+		ctx.ui.setStatus(CREDIT_KEY, undefined);
 		ctx.ui.setWidget(REPORT_KEY, undefined);
 		clearInitialContextWidget(ctx);
+	}
+
+	async function refreshQuota(pi: ExtensionAPI, force = false): Promise<QuotaResult> {
+		if (force) {
+			const result = await fetchCopilotQuota(pi);
+			quotaCache = { fetchedAt: Date.now(), result };
+			return result;
+		}
+		const fresh = quotaCache !== null && Date.now() - quotaCache.fetchedAt < QUOTA_CACHE_TTL_MS;
+		if (fresh) return quotaCache!.result;
+		if (quotaRefresh) return quotaRefresh;
+		quotaRefresh = fetchCopilotQuota(pi)
+			.then((result) => {
+				quotaCache = { fetchedAt: Date.now(), result };
+				return result;
+			})
+			.finally(() => {
+				quotaRefresh = null;
+			});
+		return quotaRefresh;
+	}
+
+	async function refreshQuotaAndRender(
+		pi: ExtensionAPI,
+		ctx: ExtensionContext,
+		force = false,
+	): Promise<void> {
+		await refreshQuota(pi, force);
+		renderStatus(ctx);
 	}
 
 	function renderStatus(ctx: ExtensionContext, aggregate?: UsageAggregate): void {
@@ -410,6 +550,15 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 			creditEstimate: creditEstimate(resolvedAggregate),
 		});
 		ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", status));
+		const quotaValue = quotaCache?.result.status === "ok" ? quotaCache.result.value : undefined;
+		const now = new Date();
+		ctx.ui.setStatus(
+			CREDIT_KEY,
+			ctx.ui.theme.fg(
+				"dim",
+				creditStatus(resolvedAggregate, quotaValue, currentUtcMonth(now), now, holidaysForYear(now.getUTCFullYear())),
+			),
+		);
 	}
 
 	pi.on("session_start", (_event, ctx) => {
@@ -420,6 +569,7 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 		ctx.ui.setWidget(REPORT_KEY, undefined);
 		ctx.ui.setWidget(INITIAL_CONTEXT_KEY, undefined);
 		renderStatus(ctx);
+		if (!disabled && isCopilotModel(ctx.model)) void refreshQuotaAndRender(pi, ctx);
 	});
 
 	pi.on("model_select", (_event, ctx) => {
@@ -429,6 +579,7 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 			clearInitialContextWidget(ctx);
 		}
 		renderStatus(ctx);
+		if (!disabled && isCopilotModel(ctx.model)) void refreshQuotaAndRender(pi, ctx);
 	});
 
 	pi.on("before_agent_start", (event, ctx) => {
@@ -521,7 +672,7 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 	pi.on("session_shutdown", (_event, ctx) => clearUi(ctx));
 
 	pi.registerCommand("copilot-usage", {
-		description: "Show Copilot token/credit usage: /copilot-usage [YYYY-MM|official [YYYY-MM]|clear]",
+		description: "Show Copilot token/credit/quota usage: /copilot-usage [YYYY-MM|official [YYYY-MM]|clear]",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			if (disabled) {
 				clearUi(ctx);
@@ -563,7 +714,12 @@ export default function copilotUsageExtension(pi: ExtensionAPI): void {
 
 			const official = request.mode === "official" ? await fetchOfficialBilling(pi, request.period) : null;
 			const branch = activeBranch(ctx);
-			ctx.ui.setWidget(REPORT_KEY, buildReport(branch, local, official, latestRequest));
+			const quota = await refreshQuota(pi, true);
+			const now = new Date();
+			ctx.ui.setWidget(
+				REPORT_KEY,
+				buildReport(branch, local, official, latestRequest, quota, now, holidaysForYear(now.getUTCFullYear())),
+			);
 			renderStatus(ctx, branch);
 		},
 	});
