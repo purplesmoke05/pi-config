@@ -1,4 +1,15 @@
-import { aggregateSessionEntries, isCopilotModel, type UsageTotals } from "../copilot-usage/usage.ts";
+import {
+	aggregateSessionEntries,
+	currentUtcMonth,
+	finiteNonNegativeInteger,
+	finiteNonNegativeNumber,
+	isCopilotModel,
+	isCopilotUsageDisabled,
+	isRecord,
+	utcMonthPeriod,
+	type UsageTotals,
+	type UtcMonthPeriod,
+} from "../copilot-shared/usage.ts";
 
 export interface CopilotQuotaCategory {
 	entitlement: number | null;
@@ -20,45 +31,8 @@ export type CopilotQuotaParseResult =
 	| { ok: true; value: CopilotQuota }
 	| { ok: false; error: string };
 
-export interface UtcMonthPeriod {
-	year: number;
-	month: number;
-	startMs: number;
-	endMs: number;
-}
-
-export function utcMonthPeriod(year: number, month: number): UtcMonthPeriod {
-	if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-		throw new RangeError("year/month must identify a UTC calendar month");
-	}
-	return {
-		year,
-		month,
-		startMs: Date.UTC(year, month - 1, 1),
-		endMs: Date.UTC(year, month, 1),
-	};
-}
-
-export function currentUtcMonth(now = new Date()): UtcMonthPeriod {
-	return utcMonthPeriod(now.getUTCFullYear(), now.getUTCMonth() + 1);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function pickField(record: Record<string, unknown>, camel: string, snake: string): unknown {
 	return record[camel] ?? record[snake];
-}
-
-function finiteNonNegativeInteger(value: unknown): number | null {
-	return typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0
-		? value
-		: null;
-}
-
-function finiteNonNegativeNumber(value: unknown): number | null {
-	return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function parseQuotaCategory(value: unknown): CopilotQuotaCategory | null {
@@ -250,5 +224,11 @@ export function dailyCreditBudget(
 	};
 }
 
-export { aggregateSessionEntries, isCopilotModel };
-export type { UsageTotals };
+export {
+	aggregateSessionEntries,
+	currentUtcMonth,
+	isCopilotModel,
+	isCopilotUsageDisabled,
+	utcMonthPeriod,
+};
+export type { UsageTotals, UtcMonthPeriod };

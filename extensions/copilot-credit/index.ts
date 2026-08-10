@@ -6,20 +6,23 @@
  * The widget is present only while `github-copilot` is selected. The monthly
  * quota is read from the already-authenticated `gh` CLI via the
  * `copilot_internal/user` endpoint and cached for 60 seconds. Session credit
- * comes from Pi's session files via the copilot-usage aggregation module.
+ * comes from Pi's session files via the shared copilot-shared aggregation module.
  *
  * Disable with PI_COPILOT_USAGE_DISABLE=1.
  */
 
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { creditWidgetLine, quotaPerDayLine, quotaReportLines } from "./display.ts";
 import {
 	aggregateSessionEntries,
+	currentUtcMonth,
 	isCopilotModel,
 	isCopilotUsageDisabled,
+	japaneseHolidays,
+	parseCopilotQuota,
+	type CopilotQuota,
 	type UsageTotals,
-} from "../copilot-usage/usage.ts";
-import { creditWidgetLine, quotaPerDayLine, quotaReportLines } from "./display.ts";
-import { currentUtcMonth, japaneseHolidays, parseCopilotQuota, type CopilotQuota } from "./usage.ts";
+} from "./usage.ts";
 
 const WIDGET_KEY = "copilot-credit";
 const REPORT_KEY = "copilot-credit-report";

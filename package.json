@@ -74,6 +74,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:copilot-instructions": "node --test --experimental-strip-types extensions/copilot-instructions/index.test.ts",
+    "test:copilot-shared": "node --test --experimental-strip-types extensions/copilot-shared/usage.test.ts",
     "test:copilot-usage": "node --test --experimental-strip-types extensions/copilot-usage/usage.test.ts extensions/copilot-usage/display.test.ts extensions/copilot-usage/index.test.ts",
     "test:copilot-credit": "node --test --experimental-strip-types extensions/copilot-credit/usage.test.ts extensions/copilot-credit/display.test.ts extensions/copilot-credit/index.test.ts",
     "test:notify": "node --test --experimental-strip-types vendor/pi-notify-agent/extensions/index.test.ts",

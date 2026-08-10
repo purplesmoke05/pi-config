@@ -29,25 +29,27 @@ import {
 } from "./display.ts";
 import {
 	PRICING_SNAPSHOT_DATE,
-	PRICING_EFFECTIVE_FROM,
 	PRICING_SOURCE,
+	estimateProviderPayload,
+	parseOfficialBillingReport,
+	type OfficialBillingSummary,
+	type PayloadEstimate,
+} from "./usage.ts";
+import {
+	PRICING_EFFECTIVE_FROM,
 	aggregateHistory,
 	aggregateSessionEntries,
 	currentUtcMonth,
-	estimateProviderPayload,
 	isCopilotModel,
 	isCopilotUsageDisabled,
-	parseOfficialBillingReport,
 	parseSessionJsonl,
 	parseUtcMonth,
 	type HistoryAggregate,
-	type OfficialBillingSummary,
-	type PayloadEstimate,
 	type SessionRecord,
 	type UsageAggregate,
 	type UsageTotals,
 	type UtcMonthPeriod,
-} from "./usage.ts";
+} from "../copilot-shared/usage.ts";
 
 const STATUS_KEY = "copilot-usage";
 const REPORT_KEY = "copilot-usage-report";

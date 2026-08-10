@@ -1,4 +1,4 @@
-import type { UsageTotals } from "../copilot-usage/usage.ts";
+import type { UsageTotals } from "./usage.ts";
 import {
 	businessDaysElapsed,
 	businessDaysInMonth,

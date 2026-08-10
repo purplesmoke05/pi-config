@@ -25,6 +25,7 @@ Or add to `~/.pi/agent/settings.json`:
 | `extensions/copilot-instructions/` | extension | Loads GitHub Copilot context files when present: `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, and `.github/skills/*/SKILL.md` |
 | `extensions/copilot-usage/` | extension | Shows outgoing input-token estimates and provider-reported token/list-price credit usage, only while the `github-copilot` provider is selected |
 | `extensions/copilot-credit/` | extension | Standalone GitHub Copilot CLI-style credit widget: monthly plan meter, session AIC, and per-remaining-business-day budget, only while the `github-copilot` provider is selected |
+| `extensions/copilot-shared/` | shared module | Session aggregation, provider activation, and UTC month helpers shared by `copilot-usage` and `copilot-credit`; not loaded as an extension |
 | `extensions/autonomy-scaffold/` | extension | Appends a system-prompt discipline block that keeps weak-autonomy models on task (don't stop before the work is verifiable; investigate with your own tools before asking). Disabled by default; enable with `PI_AUTONOMY_SCAFFOLD_ENABLE=1` |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
 | `extensions/copy-code/` | extension | `/copy-code` copies a fenced code block from the last answer to the clipboard as raw text, without the gutter indent that mouse-selecting pi's rendered output picks up |
@@ -91,7 +92,7 @@ Disable all tracking and display with `PI_COPILOT_USAGE_DISABLE=1` (also accepts
 Plan: 207/300 (69% used) · Session: 2.12 AIC used · 5.5 AIC/day
 ```
 
-The `Plan` segment reads the current-month premium-request quota from the already-authenticated `gh` CLI via the `copilot_internal/user` endpoint and caches it for 60 seconds. `Session` is the active-branch AIC total from the same local aggregation module `copilot-usage` uses, so the two extensions agree on session credit. The trailing `AIC/day` is the remaining premium credits divided by the remaining business days in the UTC month, where business days exclude weekends and Japanese national holidays (fixed, floating, equinox, substitute, and citizen's days, valid 1980-2099). The widget is cleared when the provider is not `github-copilot` or the extension is disabled.
+The `Plan` segment reads the current-month premium-request quota from the already-authenticated `gh` CLI via the `copilot_internal/user` endpoint and caches it for 60 seconds. `Session` is the active-branch AIC total from the shared `copilot-shared` aggregation module, so the two extensions agree on session credit. The trailing `AIC/day` is the remaining premium credits divided by the remaining business days in the UTC month, where business days exclude weekends and Japanese national holidays (fixed, floating, equinox, substitute, and citizen's days, valid 1980-2099). The widget is cleared when the provider is not `github-copilot` or the extension is disabled.
 
 Use the runtime command for the detailed report:
 
