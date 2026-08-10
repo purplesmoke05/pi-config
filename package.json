@@ -75,6 +75,7 @@
     "typecheck": "tsc --noEmit",
     "test:copilot-instructions": "node --test --experimental-strip-types extensions/copilot-instructions/index.test.ts",
     "test:copilot-usage": "node --test --experimental-strip-types extensions/copilot-usage/usage.test.ts extensions/copilot-usage/display.test.ts extensions/copilot-usage/index.test.ts",
+    "test:copilot-credit": "node --test --experimental-strip-types extensions/copilot-credit/usage.test.ts extensions/copilot-credit/display.test.ts extensions/copilot-credit/index.test.ts",
     "test:notify": "node --test --experimental-strip-types vendor/pi-notify-agent/extensions/index.test.ts",
     "test:web": "node --test --experimental-strip-types vendor/pi-smart-fetch/*.test.ts vendor/pi-smart-fetch/core/*.test.ts vendor/pi-smart-web-search/*.test.ts",
     "test:ask-user": "node --test --experimental-strip-types vendor/rpiv-ask-user-question/*.test.ts vendor/rpiv-ask-user-question/state/*.test.ts",

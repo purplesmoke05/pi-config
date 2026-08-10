@@ -24,6 +24,7 @@ Or add to `~/.pi/agent/settings.json`:
 |------|------|--------------|
 | `extensions/copilot-instructions/` | extension | Loads GitHub Copilot context files when present: `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, and `.github/skills/*/SKILL.md` |
 | `extensions/copilot-usage/` | extension | Shows outgoing input-token estimates and provider-reported token/list-price credit usage, only while the `github-copilot` provider is selected |
+| `extensions/copilot-credit/` | extension | Standalone GitHub Copilot CLI-style credit widget: monthly plan meter, session AIC, and per-remaining-business-day budget, only while the `github-copilot` provider is selected |
 | `extensions/autonomy-scaffold/` | extension | Appends a system-prompt discipline block that keeps weak-autonomy models on task (don't stop before the work is verifiable; investigate with your own tools before asking). Disabled by default; enable with `PI_AUTONOMY_SCAFFOLD_ENABLE=1` |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
 | `extensions/copy-code/` | extension | `/copy-code` copies a fenced code block from the last answer to the clipboard as raw text, without the gutter indent that mouse-selecting pi's rendered output picks up |
@@ -49,7 +50,7 @@ The extension also exposes `.github/skills/*/SKILL.md` through Pi's native skill
 
 ## GitHub Copilot Usage
 
-`extensions/copilot-usage/` is active only when the current model's provider is exactly `github-copilot`. It adds a compact `Copilot` status through `ctx.ui.setStatus()`, so it composes with the built-in footer and `pi-powerline-footer` instead of replacing either one. Switching to another provider clears the status, detailed report, and first-request context widget.
+`extensions/copilot-usage/` is active only when the current model's provider is exactly `github-copilot`. It adds a compact `Copilot` status through `ctx.ui.setStatus()`, so it composes with the built-in footer and `pi-powerline-footer` instead of replacing either one. Switching to another provider clears the status, detailed report, and first-request context widget. Monthly credit quota and the per-day budget are handled by the companion [`copilot-credit`](#github-copilot-credit) extension.
 
 For a new conversation, the first Copilot provider request shows a temporary widget with local token estimates for the observed request payload, system prompt, tool schemas, remaining conversation/framing payload, and each unique detected file path; repeated blocks with the same source and path are aggregated. The system line separates base/other text, native automatic context (`AGENTS.md` and `CLAUDE.md`), repository-wide GitHub Copilot instruction context, and the available-skills catalog; `applyTo`-activated instruction files are listed too, but their tokens remain in `rest` because they are user context rather than system content. Tool schemas are outside the system prompt and remain a separate value. Per-file estimates include the detected text tag and wrapper actually sent. Image bytes use the request-level 1,200-token heuristic and remain in `rest` because Pi exposes no path-to-image provenance. Overflow files are folded into a count plus token subtotal so both automatic context and prompt files remain visible within Pi's ten logical lines.
 
@@ -81,6 +82,27 @@ Pi 0.80.2 does not persist the provider, tokens, or cost of its internal LLM cal
 The extension does **not** read `auth.json`, GitHub tokens, `hosts.yml`, or environment credential values. Network access occurs only after the explicit `official` command, which invokes `gh api` with fixed argument arrays and lets GitHub CLI handle its own authentication. The report prints the `gh` login because that account is not guaranteed to be the same account used by Pi's Copilot OAuth. The official user billing endpoint is account-wide (not Pi-only) and can require a classic PAT plus suitable billing access; organization- or enterprise-managed seats may require their corresponding admin endpoint instead. Grandfathered premium-request plans are not silently converted into AI Credits.
 
 Disable all tracking and display with `PI_COPILOT_USAGE_DISABLE=1` (also accepts `true` or `yes`). The `/copilot-usage` command remains registered so it can report that the extension is disabled.
+
+## GitHub Copilot Credit
+
+`extensions/copilot-credit/` is the companion to `copilot-usage` for the monthly quota. It is active only while the current model's provider is exactly `github-copilot`, and publishes a standalone widget through `ctx.ui.setWidget()` in GitHub Copilot CLI style:
+
+```text
+Plan: 207/300 (69% used) · Session: 2.12 AIC used · 5.5 AIC/day
+```
+
+The `Plan` segment reads the current-month premium-request quota from the already-authenticated `gh` CLI via the `copilot_internal/user` endpoint and caches it for 60 seconds. `Session` is the active-branch AIC total from the same local aggregation module `copilot-usage` uses, so the two extensions agree on session credit. The trailing `AIC/day` is the remaining premium credits divided by the remaining business days in the UTC month, where business days exclude weekends and Japanese national holidays (fixed, floating, equinox, substitute, and citizen's days, valid 1980-2099). The widget is cleared when the provider is not `github-copilot` or the extension is disabled.
+
+Use the runtime command for the detailed report:
+
+```text
+/copilot-credit        show the monthly quota report and refresh the widget
+/copilot-credit clear  hide the widget and report
+```
+
+The report lists the premium-request used/limit and percent remaining, overage, plan, and reset date, plus the per-remaining-business-day budget (`per remaining business day: 5.5 cr (93 cr / 17 business days)`). The quota comes from `gh`'s account, which may differ from Pi's Copilot account; the report says so. The widget itself never blocks on the network — it renders the session meter immediately and appends the plan/per-day segments once the cached quota resolves.
+
+Disable with `PI_COPILOT_USAGE_DISABLE=1` (also accepts `true` or `yes`), the same kill switch as `copilot-usage`. The `/copilot-credit` command remains registered so it can report that the extension is disabled.
 
 ## Autonomy Scaffold
 
@@ -263,7 +285,7 @@ Review notes:
 - No network access: no `fetch`/`http`/`https`/`net`/websocket usage anywhere in the source.
 - Process execution is limited to a local `git` spawn for branch/dirty status (`git-status.ts`). Filesystem reads: `~/.pi/agent/settings.json`, theme files, shell history. Filesystem writes: working-vibes cache and stash history under `~/.pi/agent/powerline-footer/`, plus settings writes for preset selection.
 - Local patches (this repo only): `peerDependencies` widened to `*` (upstream range stops at pi 0.76); the `complete` import moved to `@earendil-works/pi-ai/compat` (no longer exported from the main entry); type-drift fixes for the current pi baseline — `KeyId`-typed keybindings, the `AutocompleteProvider` interface (async `getSuggestions`), private `Editor` methods (`cancelAutocomplete`, `undo`), the removed `getThinkingLevel` on `ExtensionContext` (degrades to `null`), and a `PowerlineConfig` default that now includes `segmentOptions`.
-- Runtime: replaces the built-in footer. `powerline.customItems` in `~/.pi/agent/settings.json` places any extension status key (e.g. `copilot-credit`) at `left`/`right`/`secondary`; `hideWhenMissing` hides it when the key is unset.
+- Runtime: replaces the built-in footer. `powerline.customItems` in `~/.pi/agent/settings.json` places any extension status key (e.g. `copilot-usage`) at `left`/`right`/`secondary`; `hideWhenMissing` hides it when the key is unset.
 
 ## Tool Display Vendor Notes
 

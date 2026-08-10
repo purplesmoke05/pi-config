@@ -8,7 +8,6 @@ type EventHandler = (event: Record<string, unknown>, ctx: ExtensionContext) => u
 function createHarness(
 	initialBranch: Array<Record<string, unknown>> = [],
 	provider = "github-copilot",
-	execOutput = "{}",
 ) {
 	const handlers = new Map<string, EventHandler[]>();
 	const widgets = new Map<string, string[] | undefined>();
@@ -34,7 +33,6 @@ function createHarness(
 		registerCommand() {},
 		getActiveTools: () => [],
 		getAllTools: () => [],
-		exec: async () => ({ code: 0, stdout: execOutput, stderr: "" }),
 	} as unknown as ExtensionAPI;
 	const ctx = {
 		cwd: "/work/project",
@@ -228,52 +226,3 @@ describe("Copilot usage extension UI lifecycle", () => {
 	});
 });
 
-describe("Copilot credit-only status and monthly quota", () => {
-	it("keeps token details in copilot-usage and puts the credit meter in copilot-credit", async () => {
-		const harness = createHarness(
-			[],
-			"github-copilot",
-			JSON.stringify({
-				login: "octocat",
-				plan: "pro",
-				quota_reset_date_utc: "2026-08-01T00:00:00.000Z",
-				quota_snapshots: {
-					premium_interactions: {
-						entitlement: 300,
-						remaining: 93,
-						percent_remaining: 31,
-						unlimited: false,
-						overage_count: 0,
-					},
-				},
-			}),
-		);
-		harness.emit("session_start", { type: "session_start" });
-		await new Promise((resolve) => setImmediate(resolve));
-
-		const usageStatus = harness.statuses.get("copilot-usage") ?? "";
-		assert.match(usageStatus, /^Copilot /);
-		assert.match(usageStatus, /branch ≈0 cr/);
-		assert.doesNotMatch(usageStatus, /207\/300/);
-
-		const creditStatus = harness.statuses.get("copilot-credit") ?? "";
-		assert.match(creditStatus, /Plan: 207\/300 \(69% used\)/);
-		assert.match(creditStatus, /Session: 0\.00 AIC used/);
-	});
-
-	it("shows only the session meter when the quota endpoint reports no quota", async () => {
-		const harness = createHarness([], "github-copilot", "{}");
-		harness.emit("session_start", { type: "session_start" });
-		await new Promise((resolve) => setImmediate(resolve));
-		const creditStatus = harness.statuses.get("copilot-credit") ?? "";
-		assert.match(creditStatus, /Session: 0\.00 AIC used/);
-		assert.doesNotMatch(creditStatus, /Plan:/);
-	});
-
-	it("clears both status keys for another provider", () => {
-		const harness = createHarness([], "openai");
-		harness.emit("session_start", { type: "session_start" });
-		assert.equal(harness.statuses.get("copilot-usage"), undefined);
-		assert.equal(harness.statuses.get("copilot-credit"), undefined);
-	});
-});
