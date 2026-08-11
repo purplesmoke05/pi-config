@@ -40,6 +40,7 @@ Or add to `~/.pi/agent/settings.json`:
 | `vendor/pi-dynamic-workflows/` | vendored extension + skills | Modified, audited `@quintinshaw/pi-dynamic-workflows@3.5.0`; explicitly approved JavaScript orchestration, resumable subagents, fail-closed worktrees, and restricted web research |
 | `vendor/pi-powerline-footer/` | vendored extension | Reviewed copy of `pi-powerline-footer@0.6.1`; powerline-style status bar with configurable status-item placement |
 | `vendor/pi-tool-display/` | vendored extension | Reviewed copy of `pi-tool-display@0.5.0`; compact tool-call rendering, diff visualization, and output truncation, with the upstream postinstall hook removed |
+| `vendor/pi-plan-mode/` | vendored extension | Reviewed copy of the official `plan-mode` example from the pi monorepo; `/plan` or `Ctrl+Alt+P` toggles read-only exploration with a bash allowlist, `Plan:` step extraction, `[DONE:n]` tracking, and `--plan` startup flag |
 | `agent-sops/` | Agent SOPs | Recurring maintenance procedures for this repo as [Agent SOPs](https://github.com/strands-agents/agent-sop), served to Claude Code via `.mcp.json` |
 | `prompts/` | prompt templates | Empty for now |
 | `themes/` | pi themes | [Catppuccin Mocha](https://catppuccin.com/palette) for the whole TUI; select with `"theme": "catppuccin-mocha"` |
@@ -244,6 +245,18 @@ Review notes:
 - Runtime config is stored under `~/.pi/agent/extensions/pi-rtk-optimizer/config.json` (or the active `PI_CODING_AGENT_DIR` equivalent).
 - Local default patch enables read compaction, minimal source filtering, smart truncation, and exact skill-read preservation so the full RTK output pipeline is active by default while keeping skill files exact.
 - The `/rtk` command can inspect, toggle, reset, and verify the optimizer at runtime.
+
+## Plan Mode Vendor Notes
+
+The official `plan-mode` example from the pi monorepo is vendored under `vendor/pi-plan-mode/` instead of installed as an npm package because upstream publishes it only as a repository example. It gives pi a Claude Code-style read-only plan mode: `/plan` (or `Ctrl+Alt+P`) disables `edit`/`write`, restricts `bash` to a read-only allowlist, asks the agent for a numbered plan under a `Plan:` header, then tracks execution via `[DONE:n]` markers with a progress widget. `--plan` starts pi already in plan mode.
+
+Review notes:
+
+- Source is pinned to commit `542683b29ab2865976dddb006b4d70cffe315e25` (2026-06-21). `SOURCE.sha256` records the byte-identical upstream hashes; `utils.ts` and `README.md` match exactly, and `index.ts` diverges only at the two documented patches below.
+- **Questionnaire tool patch:** upstream's plan-mode tool set lists `questionnaire`, which no pi runtime this package is tested against (0.83.0) registers. `setActiveToolsByName` silently drops unknown names, so the entry is removed and the plan-mode prompt now points at the actual ask tool shipped here, `ask_user_question` from the vendored `rpiv-ask-user-question`. That tool stays active during plan mode automatically because it is not in the disabled set. Full patch rationale in `SOURCE-PATCHES.md`.
+- The bash allowlist is a heuristic guard, not a sandbox: it blocks file-mutation, package-manager, privilege-escalation, and git-write commands while allowing read-only inspection. The complete pattern lists live in `utils.ts` and are exercised by `vendor-policy.test.mjs`.
+- `Ctrl+Alt+P` does not collide with any other vendored binding, and `--plan` is an extension-registered flag pi documents in its CLI help. The unbinding of `Ctrl+P` (model cycle) done at the machine level is unrelated; plan mode uses `Ctrl+Alt+P`.
+- Run `npm run test:plan-mode` for the unit and policy suites (8 utility tests, 5 policy assertions).
 
 ## Ollama Cloud Vendor Notes
 
