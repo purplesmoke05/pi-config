@@ -27,7 +27,8 @@
       "./vendor/context-mode/build/adapters/pi/extension.js",
       "./vendor/pi-dynamic-workflows/extensions/workflow.ts",
       "./vendor/pi-powerline-footer/index.ts",
-      "./vendor/pi-tool-display/index.ts"
+      "./vendor/pi-tool-display/index.ts",
+      "./vendor/pi-plan-mode/index.ts"
     ],
     "skills": [
       "./vendor/pi-extension-workbook/skills",
@@ -85,6 +86,7 @@
     "test:ask-user": "node --test --experimental-strip-types vendor/rpiv-ask-user-question/*.test.ts vendor/rpiv-ask-user-question/state/*.test.ts",
     "test:context-mode": "node --test vendor/context-mode/vendor-policy.test.mjs",
     "test:dynamic-workflows": "node --test vendor/pi-dynamic-workflows/vendor-policy.test.mjs && npm --prefix vendor/pi-dynamic-workflows run test:unit",
+    "test:plan-mode": "node --test --experimental-strip-types vendor/pi-plan-mode/utils.test.ts && node --test vendor/pi-plan-mode/vendor-policy.test.mjs",
     "typecheck:dynamic-workflows": "tsc -p vendor/pi-dynamic-workflows/tsconfig.json --noEmit && tsc -p vendor/pi-dynamic-workflows/tsconfig.scripts.json --noEmit",
     "sops:skills": "bash scripts/generate-sop-skills.sh"
   }
