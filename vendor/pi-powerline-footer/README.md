@@ -79,6 +79,20 @@ Use `"fixedEditor": true` to enable it again. Add `"mouseScroll": false` if you 
 Preset selection is saved to `~/.pi/agent/settings.json` under `powerline` and restored on startup.
 Run `/powerline default` to switch back to the default preset.
 
+### Welcome overlay
+
+The welcome splash (gradient logo, model info, tips, loaded counts, recent sessions) is **hidden by default**. Opt in from `~/.pi/agent/settings.json` or project-local `.pi/settings.json`:
+
+```json
+{
+  "showWelcome": true,
+  "quietStartup": true
+}
+```
+
+- `"showWelcome": true` — show the welcome on startup (default: hidden)
+- `"quietStartup": true` — replace the countdown overlay with a persistent header (no countdown)
+
 ### Custom items from extension statuses
 
 You can promote any extension status key into its own dedicated powerline item. This gives you a general way to register your own status items without changing this extension.

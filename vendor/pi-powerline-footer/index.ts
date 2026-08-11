@@ -1254,10 +1254,13 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     if (enabled && ctx.hasUI) {
       setupCustomEditor(ctx);
       if (event.reason === "startup") {
-        if (settings.quietStartup === true) {
-          setupWelcomeHeader(ctx);
-        } else {
-          setupWelcomeOverlay(ctx);
+        // Welcome is hidden by default; opt in with settings.showWelcome: true
+        if (settings.showWelcome === true) {
+          if (settings.quietStartup === true) {
+            setupWelcomeHeader(ctx);
+          } else {
+            setupWelcomeOverlay(ctx);
+          }
         }
       } else {
         dismissWelcome(ctx);
