@@ -42,6 +42,7 @@ Or add to `~/.pi/agent/settings.json`:
 | `vendor/pi-tool-display/` | vendored extension | Reviewed copy of `pi-tool-display@0.5.0`; compact tool-call rendering, diff visualization, and output truncation, with the upstream postinstall hook removed |
 | `agent-sops/` | Agent SOPs | Recurring maintenance procedures for this repo as [Agent SOPs](https://github.com/strands-agents/agent-sop), served to Claude Code via `.mcp.json` |
 | `prompts/` | prompt templates | Empty for now |
+| `themes/` | pi themes | [Catppuccin Mocha](https://catppuccin.com/palette) for the whole TUI; select with `"theme": "catppuccin-mocha"` |
 
 ## GitHub Copilot Context
 
@@ -300,6 +301,20 @@ Review notes:
 - No network access: no `fetch`/`http`/`https`/`net`/websocket usage anywhere in the source. No subprocess spawns.
 - Filesystem: reads config and pending-diff preview files; writes debug logs and config under the pi agent directory.
 - Local patches (this repo only): `postinstall` removed; `peerDependencies` widened to `*`; the unused compiled `tool-display-api-consumer.js`/`.d.ts` and its `exports` entry removed; type-drift fixes for the current pi baseline (optional `renderCall`/`context` signatures, `context.cwd` null-safety, `this` typing in the user-message-box renderer).
+
+## Theme
+
+`themes/` ships pi themes as package resources (declared under `pi.themes` in `package.json`), so they travel with this package instead of living in `~/.pi/agent/themes/`. Select one with `"theme"` in `~/.pi/agent/settings.json`:
+
+```json
+{
+  "theme": "catppuccin-mocha"
+}
+```
+
+`catppuccin-mocha` maps the [Catppuccin Mocha](https://catppuccin.com/palette) palette onto pi's 52 color tokens (accent → mauve, border → surface1, diff → green/red, syntax → Catppuccin's official syntax colors). The two tool status backgrounds (`toolSuccessBg`/`toolErrorBg`) use green/red-tinted surfaces so success/error stays distinguishable without breaking the palette. The powerline footer picks up `accent`/`success`/`warning`/`error` from the active pi theme automatically; its hardcoded `model` (pink) and `path` (teal) defaults are already Catppuccin colors.
+
+Other variants (`macchiato`, `frappé`, `latte`) or other themes can be added as new files under `themes/` — each needs `name` plus all 51 required color tokens (see `theme-schema.json` in the pi package; `thinkingMax` falls back to `thinkingXhigh`). Run `/reload` (or restart pi) after changing the theme setting.
 
 ## Agent SOPs
 
