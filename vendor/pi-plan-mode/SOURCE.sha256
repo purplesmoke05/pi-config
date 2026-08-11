@@ -1,0 +1,7 @@
+# Byte-identical upstream hashes at commit 542683b29ab2865976dddb006b4d70cffe315e25
+# (packages/coding-agent/examples/extensions/plan-mode, earendil-works/pi)
+# After applying the patches in SOURCE-PATCHES.md, index.ts diverges from this
+# hash; utils.ts and README.md must match exactly.
+90fae53e2fada97165f7488520bd54f3cbfe5d2c7e4cfd3bd2aa07ee796e61e8  index.ts
+12ea28d57cc55e68e8d52a2f1d16df8b2e7f2749cd694d41453028002a2bdad9  utils.ts
+1ff8d611b8fbafef4ca1e3dbc72136fbcc166461b69f859b5e961b15147bff39  README.md

@@ -1,0 +1,23 @@
+pi-plan-mode (official example extension)
+Source: earendil-works/pi, MIT License
+Path: packages/coding-agent/examples/extensions/plan-mode
+
+This directory contains a locally reviewed copy of the official `plan-mode`
+example extension from the pi monorepo, pinned to commit
+`542683b29ab2865976dddb006b4d70cffe315e25` (2026-06-21). It is not an npm
+package; upstream publishes it only as a repository example.
+
+The extension is loaded from `index.ts`; `utils.ts` holds the pure,
+testable helpers (bash allowlist, todo extraction, `[DONE:n]` tracking).
+`SOURCE.sha256` records the byte-identical upstream file hashes, and
+`SOURCE-PATCHES.md` lists the two small local changes applied for this
+repository's runtime (pi 0.83.0).
+
+Upstream README is preserved verbatim as `README.md`.
+
+Security posture: when plan mode is active, `edit`/`write` are removed from
+the active tool set and `bash` commands are filtered against a read-only
+allowlist in the `tool_call` hook. The allowlist is a heuristic guard, not a
+sandbox; it lives entirely in this reviewed source and can be audited in
+`utils.ts`. Plan and execution state is persisted via the session entry
+system and restored on resume.
