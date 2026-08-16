@@ -397,30 +397,29 @@ const cacheWriteSegment: StatusLineSegment = {
   },
 };
 
+export function renderExtensionStatusParts(ctx: SegmentContext): string[] {
+  const statuses = ctx.extensionStatuses;
+  if (!statuses || statuses.size === 0) return [];
+
+  // Skip empty strings, notification-style ("[...") values shown above the
+  // editor, ANSI-only values, and statuses elevated into custom segments.
+  const parts: string[] = [];
+  for (const [statusKey, value] of statuses.entries()) {
+    if (ctx.hiddenExtensionStatusKeys.has(statusKey)) continue;
+    const normalized = value ? normalizeCompactExtensionStatus(value) : null;
+    if (normalized) parts.push(normalized);
+  }
+  return parts;
+}
+
 const extensionStatusesSegment: StatusLineSegment = {
   id: "extension_statuses",
   render(ctx) {
-    const statuses = ctx.extensionStatuses;
-    if (!statuses || statuses.size === 0) return { content: "", visible: false };
-
-    // Join compact statuses with a separator
-    // Skip: empty strings, notification-style ("[...") shown above editor,
-    // and strings that are only ANSI codes with no visible text.
-    // Also skip statuses explicitly elevated into dedicated custom segments.
-    const parts: string[] = [];
-    for (const [statusKey, value] of statuses.entries()) {
-      if (ctx.hiddenExtensionStatusKeys.has(statusKey)) continue;
-      const normalized = value ? normalizeCompactExtensionStatus(value) : null;
-      if (normalized) {
-        parts.push(normalized);
-      }
-    }
-
+    const parts = renderExtensionStatusParts(ctx);
     if (parts.length === 0) return { content: "", visible: false };
 
-    // Statuses already have their own styling applied by the extensions
-    const content = parts.join(` ${SEP_DOT} `);
-    return { content, visible: true };
+    // Statuses already have their own styling applied by the extensions.
+    return { content: parts.join(` ${SEP_DOT} `), visible: true };
   },
 };
 

@@ -27,12 +27,13 @@ import type { BashModeSettings } from "./bash-mode/types.ts";
 import { getPreset, PRESETS } from "./presets.ts";
 import { collectHiddenExtensionStatusKeys, getNotificationExtensionStatuses, mergeSegmentOptions, mergeSegmentsWithCustomItems, nextPowerlineSettingWithOptions, nextPowerlineSettingWithPreset, parsePowerlineConfig } from "./powerline-config.ts";
 import { getSeparator } from "./separators.ts";
-import { renderSegment } from "./segments.ts";
+import { renderExtensionStatusParts, renderSegment } from "./segments.ts";
 import { getGitStatus, invalidateGitStatus, invalidateGitBranch } from "./git-status.ts";
 import { ansi, getFgAnsiCode } from "./colors.ts";
 import { WelcomeComponent, WelcomeHeader, discoverLoadedCounts, getRecentSessions } from "./welcome.ts";
 import { createWelcomeDismissScheduler } from "./welcome-dismiss.ts";
 import { createRenderScheduler } from "./render-scheduler.ts";
+import { partitionResponsiveSegments, type ResponsiveSegment } from "./responsive-layout.ts";
 import { readCoreContextUsage } from "./context-usage.ts";
 import { renderFixedEditorCluster } from "./fixed-editor/cluster.ts";
 import { emergencyTerminalModeReset, TerminalSplitCompositor } from "./fixed-editor/terminal-split.ts";
@@ -899,59 +900,38 @@ function computeResponsiveLayout(
   const mergedSegments = mergeSegmentsWithCustomItems(presetDef, config.customItems);
   const primaryIds = [...mergedSegments.leftSegments, ...mergedSegments.rightSegments];
   const secondaryIds = mergedSegments.secondarySegments;
+  const secondaryIdSet = new Set<StatusLineSegmentId>(secondaryIds);
   const allSegmentIds = [...primaryIds, ...secondaryIds];
-  
-  // Render all segments and get their widths
-  const renderedSegments: { content: string; width: number }[] = [];
+
+  // Render all segments and retain their declared row priority. Secondary
+  // statuses may move up when wide, but must not disappear behind optional
+  // primary overflow when the terminal narrows.
+  const renderedSegments: ResponsiveSegment[] = [];
   for (const segId of allSegmentIds) {
-    const { content, width, visible } = renderSegmentWithWidth(segId, ctx);
-    if (visible) {
-      renderedSegments.push({ content, width });
+    const secondary = secondaryIdSet.has(segId);
+    if (segId === "extension_statuses") {
+      // Keep each extension status independently placeable. Joining them into
+      // one wide segment made the Codex quota vanish whenever another status
+      // (for example cache statistics) pushed the combined text past a narrow
+      // terminal's width.
+      for (const content of renderExtensionStatusParts(ctx)) {
+        renderedSegments.push({ content, width: visibleWidth(content), secondary });
+      }
+      continue;
     }
+
+    const { content, width, visible } = renderSegmentWithWidth(segId, ctx);
+    if (visible) renderedSegments.push({ content, width, secondary });
   }
-  
+
   if (renderedSegments.length === 0) {
     return { topContent: "", secondaryContent: "" };
   }
-  
-  // Calculate how many segments fit in top bar
-  // Account for: leading space (1) + trailing space (1) = 2 chars overhead
-  const baseOverhead = 2;
-  let currentWidth = baseOverhead;
-  let topSegments: string[] = [];
-  let overflowSegments: { content: string; width: number }[] = [];
-  let overflow = false;
-  
-  for (const seg of renderedSegments) {
-    const neededWidth = seg.width + (topSegments.length > 0 ? sepWidth : 0);
-    
-    if (!overflow && currentWidth + neededWidth <= availableWidth) {
-      topSegments.push(seg.content);
-      currentWidth += neededWidth;
-    } else {
-      overflow = true;
-      overflowSegments.push(seg);
-    }
-  }
-  
-  // Fit overflow segments into secondary row (same width constraint)
-  // Stop at first non-fitting segment to preserve ordering
-  let secondaryWidth = baseOverhead;
-  let secondarySegments: string[] = [];
-  
-  for (const seg of overflowSegments) {
-    const neededWidth = seg.width + (secondarySegments.length > 0 ? sepWidth : 0);
-    if (secondaryWidth + neededWidth <= availableWidth) {
-      secondarySegments.push(seg.content);
-      secondaryWidth += neededWidth;
-    } else {
-      break;
-    }
-  }
-  
+
+  const partition = partitionResponsiveSegments(renderedSegments, availableWidth, sepWidth);
   return {
-    topContent: buildContentFromParts(topSegments, presetDef),
-    secondaryContent: buildContentFromParts(secondarySegments, presetDef),
+    topContent: buildContentFromParts(partition.top, presetDef),
+    secondaryContent: buildContentFromParts(partition.secondary, presetDef),
   };
 }
 
