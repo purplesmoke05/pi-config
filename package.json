@@ -25,10 +25,12 @@
       "./vendor/pi-smart-web-search/index.ts",
       "./vendor/rpiv-ask-user-question/index.ts",
       "./vendor/context-mode/build/adapters/pi/extension.js",
+      "./vendor/pi-context-prune/index.ts",
       "./vendor/pi-dynamic-workflows/extensions/workflow.ts",
       "./vendor/pi-powerline-footer/index.ts",
       "./vendor/pi-tool-display/index.ts",
-      "./vendor/pi-plan-mode/index.ts"
+      "./vendor/pi-plan-mode/index.ts",
+      "./vendor/pi-cache-optimizer/index.ts"
     ],
     "skills": [
       "./vendor/pi-extension-workbook/skills",
@@ -81,10 +83,14 @@
     "test:copilot-shared": "node --test --experimental-strip-types extensions/copilot-shared/usage.test.ts",
     "test:copilot-usage": "node --test --experimental-strip-types extensions/copilot-usage/usage.test.ts extensions/copilot-usage/display.test.ts extensions/copilot-usage/index.test.ts",
     "test:copilot-credit": "node --test --experimental-strip-types extensions/copilot-credit/usage.test.ts extensions/copilot-credit/display.test.ts extensions/copilot-credit/index.test.ts",
+    "test:codex-usage": "node --test --experimental-strip-types extensions/codex-usage/usage.test.ts extensions/codex-usage/index.test.ts",
     "test:notify": "node --test --experimental-strip-types vendor/pi-notify-agent/extensions/index.test.ts",
+    "test:powerline": "node --test --experimental-strip-types vendor/pi-powerline-footer/responsive-layout.test.ts",
+    "test:tool-display": "npm --prefix vendor/pi-tool-display run check",
     "test:web": "node --test --experimental-strip-types vendor/pi-smart-fetch/*.test.ts vendor/pi-smart-fetch/core/*.test.ts vendor/pi-smart-web-search/*.test.ts",
     "test:ask-user": "node --test --experimental-strip-types vendor/rpiv-ask-user-question/*.test.ts vendor/rpiv-ask-user-question/state/*.test.ts",
     "test:context-mode": "node --test vendor/context-mode/vendor-policy.test.mjs",
+    "test:context-prune": "tsx --test vendor/pi-context-prune/tests/local-integration.test.ts",
     "test:dynamic-workflows": "node --test vendor/pi-dynamic-workflows/vendor-policy.test.mjs && npm --prefix vendor/pi-dynamic-workflows run test:unit",
     "test:plan-mode": "node --test --experimental-strip-types vendor/pi-plan-mode/utils.test.ts && node --test vendor/pi-plan-mode/vendor-policy.test.mjs",
     "typecheck:dynamic-workflows": "tsc -p vendor/pi-dynamic-workflows/tsconfig.json --noEmit && tsc -p vendor/pi-dynamic-workflows/tsconfig.scripts.json --noEmit",
