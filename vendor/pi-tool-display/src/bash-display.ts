@@ -11,6 +11,7 @@ interface BashCallArgs {
 	commandPrefix?: string;
 	shellPath?: string;
 	timeout?: number;
+	maxCommandChars?: number;
 }
 
 interface BashCallRenderTheme {
@@ -124,6 +125,22 @@ function isDefaultShellPath(shellPath: string): boolean {
 	return basename === "bash" || basename === "cmd.exe";
 }
 
+export function truncateCommandDisplay(display: string, maxChars: number | undefined): string {
+	if (typeof maxChars !== "number" || maxChars <= 0) {
+		return display;
+	}
+	const chars = Array.from(display);
+	if (chars.length <= maxChars) {
+		return display;
+	}
+	const ellipsis = "\u2026";
+	const keep = Math.max(0, maxChars - ellipsis.length);
+	if (keep <= 0) {
+		return ellipsis;
+	}
+	return chars.slice(0, keep).join("") + ellipsis;
+}
+
 function buildCommandDisplay(args: BashCallArgs): string {
 	const command =
 		typeof args.command === "string" && args.command.trim().length > 0
@@ -133,7 +150,8 @@ function buildCommandDisplay(args: BashCallArgs): string {
 		typeof args.commandPrefix === "string" && args.commandPrefix.trim().length > 0
 			? args.commandPrefix.trim()
 			: "";
-	return prefix ? `${prefix} ${command}` : command;
+	const display = prefix ? `${prefix} ${command}` : command;
+	return truncateCommandDisplay(display, args.maxCommandChars);
 }
 
 function buildBashCallText(
@@ -165,7 +183,9 @@ export function renderBashCall(
 	args: BashCallArgs,
 	theme: BashCallRenderTheme,
 	context: BashCallRenderContextLike,
+	maxCommandChars?: number,
 ): Text {
+	const enrichedArgs: BashCallArgs = { ...args, maxCommandChars: maxCommandChars ?? args.maxCommandChars };
 	const text = context.lastComponent instanceof Text ? context.lastComponent : new Text("", 0, 0);
 	const carrier = toStateCarrier(context.state);
 	const toolCallId = getToolCallId(context);
@@ -174,7 +194,7 @@ export function renderBashCall(
 
 	if (!shouldSpin) {
 		stopSpinner(toolCallId, spinnerState);
-		text.setText(buildBashCallText(args, theme));
+		text.setText(buildBashCallText(enrichedArgs, theme));
 		return text;
 	}
 
@@ -185,7 +205,7 @@ export function renderBashCall(
 				spinnerState.frameIndex = (spinnerState.frameIndex + 1) % BASH_SPINNER_FRAMES.length;
 				text.setText(
 					buildBashCallText(
-						args,
+						enrichedArgs,
 						theme,
 						BASH_SPINNER_FRAMES[spinnerState.frameIndex],
 						Date.now() - (spinnerState.startedAt ?? Date.now()),
@@ -207,6 +227,6 @@ export function renderBashCall(
 	const elapsedMs = spinnerState?.startedAt !== undefined
 		? Date.now() - spinnerState.startedAt
 		: undefined;
-	text.setText(buildBashCallText(args, theme, spinnerFrame, elapsedMs));
+	text.setText(buildBashCallText(enrichedArgs, theme, spinnerFrame, elapsedMs));
 	return text;
 }

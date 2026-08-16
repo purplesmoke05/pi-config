@@ -1842,7 +1842,8 @@ export function registerToolDisplayOverrides(
     label: "bash",
     ...createBuiltinToolBase("bash"),
     renderCall(args, theme, context) {
-      return renderBashCall(args, theme, context as never);
+      const config = getConfig();
+      return renderBashCall(args, theme, context as never, config.bashCommandMaxChars);
     },
     renderResult(result, options, theme, context) {
       const config = getConfig();

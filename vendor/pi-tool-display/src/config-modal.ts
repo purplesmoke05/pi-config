@@ -248,6 +248,27 @@ function buildInspectorSettings(
 			searchTerms: ["bash", "collapsed", "lines", "stdout", "zero"],
 		},
 		{
+			id: "bashCommandMaxChars",
+			label: "Bash command max chars",
+			currentValue: String(config.bashCommandMaxChars),
+			values: ["0", "80", "120", "200", "400", "800"],
+			inspectorTitle: "Bash Command Max Chars",
+			inspectorSummary: [
+				"Truncates the rendered bash command line to this many characters, appending an ellipsis when exceeded.",
+				"Set 0 to disable truncation and show the full command (pi-tui will word-wrap long commands across multiple lines).",
+			],
+			inspectorOptions: [
+				"0 — no truncation, full command wrapped",
+				"120 — default, one-line snapshot of most commands",
+				"200/400/800 — keep more of very long commands",
+			],
+			inspectorAdvanced: buildAdvancedNotes(config, capabilities, [
+				"Only affects the call line; bash output is governed by bashCollapsedLines / bashOutputMode.",
+			]),
+			inspectorPath: configPath,
+			searchTerms: ["bash", "command", "truncate", "wrap", "ellipsis", "max", "chars"],
+		},
+		{
 			id: "diffViewMode",
 			label: "Edit diff layout",
 			currentValue: config.diffViewMode,
@@ -358,6 +379,11 @@ function applySetting(config: ToolDisplayConfig, id: string, value: string): Too
 			return {
 				...config,
 				bashCollapsedLines: parseNumber(value, config.bashCollapsedLines),
+			};
+		case "bashCommandMaxChars":
+			return {
+				...config,
+				bashCommandMaxChars: parseNumber(value, config.bashCommandMaxChars),
 			};
 		case "diffViewMode":
 			return {
