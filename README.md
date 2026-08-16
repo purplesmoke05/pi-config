@@ -21,10 +21,11 @@ Or add to `~/.pi/agent/settings.json`:
 ## What's inside
 
 | Path | Type | What it does |
-|------|------|--------------|
+| ------ | ------ | -------------- |
 | `extensions/copilot-instructions/` | extension | Loads GitHub Copilot context files when present: `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, and `.github/skills/*/SKILL.md` |
 | `extensions/copilot-usage/` | extension | Shows outgoing input-token estimates and provider-reported token/list-price credit usage, only while the `github-copilot` provider is selected |
 | `extensions/copilot-credit/` | extension | Standalone GitHub Copilot CLI-style credit widget: monthly plan meter, session AIC, and per-remaining-business-day budget, only while the `github-copilot` provider is selected |
+| `extensions/codex-usage/` | extension | Shows the current ChatGPT Codex rate-limit windows and reset countdown in Pi's footer while an `openai-codex` model is selected |
 | `extensions/copilot-shared/` | shared module | Session aggregation, provider activation, and UTC month helpers shared by `copilot-usage` and `copilot-credit`; not loaded as an extension |
 | `extensions/autonomy-scaffold/` | extension | Appends a system-prompt discipline block that keeps weak-autonomy models on task (don't stop before the work is verifiable; investigate with your own tools before asking). Disabled by default; enable with `PI_AUTONOMY_SCAFFOLD_ENABLE=1` |
 | `extensions/providers/` | extension | Registers the Command Code model provider |
@@ -37,13 +38,15 @@ Or add to `~/.pi/agent/settings.json`:
 | `vendor/pi-smart-web-search/` | vendored extension | Hardened source copy of `pi-smart-web-search@0.4.0`; fixed-endpoint DuckDuckGo search with public-link filtering and explicit untrusted-data boundaries |
 | `vendor/rpiv-ask-user-question/` | vendored extension | Audited copy of `@juicesharp/rpiv-ask-user-question@2.3.1`; structured multi-question overlays with reviewed local config and external-editor bridges |
 | `vendor/context-mode/` | vendored extension + skills | Modified, audited `context-mode@1.0.169`; local MCP execution/index/search with update/install paths removed and strict child-process boundaries |
+| `vendor/pi-cache-optimizer/` | vendored extension | Reviewed `pi-cache-optimizer@2.8.2`; improves stable-prefix placement, prompt-cache keys/session affinity, and provider cache statistics |
+| `vendor/pi-context-prune/` | vendored extension | Reviewed `pi-context-prune@1.3.0`; summarizes completed tool-result batches, removes summarized raw results from future LLM context, and retains recoverable originals in session history |
 | `vendor/pi-dynamic-workflows/` | vendored extension + skills | Modified, audited `@quintinshaw/pi-dynamic-workflows@3.5.0`; explicitly approved JavaScript orchestration, resumable subagents, fail-closed worktrees, and restricted web research |
 | `vendor/pi-powerline-footer/` | vendored extension | Reviewed copy of `pi-powerline-footer@0.6.1`; powerline-style status bar with configurable status-item placement |
 | `vendor/pi-tool-display/` | vendored extension | Reviewed copy of `pi-tool-display@0.5.0`; compact tool-call rendering, diff visualization, and output truncation, with the upstream postinstall hook removed and config resolution patched to make `vendor/pi-tool-display/config/config.json` the canonical, version-controlled source |
 | `vendor/pi-plan-mode/` | vendored extension | Reviewed copy of the official `plan-mode` example from the pi monorepo; `/plan` or `Ctrl+Alt+P` toggles read-only exploration with a bash allowlist, `Plan:` step extraction, `[DONE:n]` tracking, and `--plan` startup flag |
 | `agent-sops/` | Agent SOPs | Recurring maintenance procedures for this repo as [Agent SOPs](https://github.com/strands-agents/agent-sop), served to Claude Code via `.mcp.json` |
 | `prompts/` | prompt templates | Empty for now |
-| `themes/` | pi themes | [Catppuccin Mocha](https://catppuccin.com/palette) for the whole TUI; select with `"theme": "catppuccin-mocha"` |
+| `themes/` | pi themes | [Catppuccin Mocha](https://catppuccin.com/palette) (`"theme": "catppuccin-mocha"`) and a Command Code CLI-inspired theme (`"theme": "commandcode"`) with a pure-black background, lavender `#e4ccff` accent, and purple `#a599e9` headings |
 
 ## GitHub Copilot Context
 
@@ -107,6 +110,20 @@ The report lists the premium-request used/limit and percent remaining, overage, 
 
 Disable with `PI_COPILOT_USAGE_DISABLE=1` (also accepts `true` or `yes`), the same kill switch as `copilot-usage`. The `/copilot-credit` command remains registered so it can report that the extension is disabled.
 
+## OpenAI Codex Usage
+
+`extensions/codex-usage/` is active only while the current model's provider is `openai-codex`. It publishes a compact `codex-usage` status through `ctx.ui.setStatus()`, so the built-in footer shows it automatically and this repo's default `pi-powerline-footer` preset places it on the secondary footer row. A weekly-only account appears like this:
+
+```text
+Codex wk 14% left · reset 3d18h
+```
+
+If OpenAI reports both a five-hour and weekly window, both remaining percentages are shown. The extension refreshes at session start, on model selection, and after each completed Codex assistant message. Ordinary startup/model refreshes are cached for five minutes; `/codex-usage` forces an immediate refresh and displays the plan, exact reset time, additional model-specific limits, and credit balance in a temporary detail widget. `/codex-usage clear` hides only that detail widget—the footer remains active.
+
+Authentication is resolved through Pi's model registry, which refreshes the existing `openai-codex` OAuth credential when necessary. The extension does not read `auth.json`, persist tokens, log credentials, or retain account IDs/email from the response. It calls only the fixed ChatGPT endpoint `https://chatgpt.com/backend-api/wham/usage`; that endpoint is undocumented and may change without notice. Network or authentication failures produce a compact unavailable status without exposing the response body.
+
+Disable all fetching and display with `PI_CODEX_USAGE_DISABLE=1` (also accepts `true` or `yes`). The `/codex-usage` command remains registered so it can report that the extension is disabled.
+
 ## Autonomy Scaffold
 
 Weak-autonomy models tend to fail in two ways: they stop early (declaring the task done, or asking the user for permission before the work is verifiable), and they ask the user for things they could look up themselves. `extensions/autonomy-scaffold/` appends a short discipline block to the system prompt on every agent start, telling the model to stay on task until the result is verified and to investigate with its own tools (`ls`, `find`, `grep`, `read`, `bash`) before asking.
@@ -147,7 +164,7 @@ pi renders fenced code blocks with a per-line prefix (`codeBlockIndent`, default
 
 `extensions/copy-code/` keeps the latest assistant text (captured on `message_end`) and copies just the requested fenced block to the clipboard as raw text, with no gutter and with the code's own inner indentation preserved.
 
-```
+```text
 /copy-code         copy the LAST code block
 /copy-code 2       copy the Nth block (1-based)
 /copy-code all     copy every block, concatenated as fenced markdown
@@ -216,6 +233,33 @@ Review notes:
 - Automatic writes are limited to context-mode-owned SQLite/session/stat files plus process-scoped temp scripts, readiness sentinels, fetch output, and atomic-write staging. Persistent databases are not deleted by a timer. Dead-PID temp SQLite files and the current process's temporary files are still cleaned up. `ctx_index` reads caller-selected paths, `ctx_search` can refresh a previously indexed file, and the enabled executor can read/write any path available to the current Unix/Windows user.
 - `ctx_execute`, `ctx_execute_file`, and `ctx_batch_execute` are not an OS sandbox: model-selected code can launch subprocesses, access the public network, and inspect the user's filesystem. The environment boundary reduces accidental credential inheritance but does not make untrusted code safe. Disable this extension when that authority is inappropriate.
 - The curated tool set is `ctx_execute`, `ctx_execute_file`, `ctx_batch_execute`, `ctx_fetch_and_index`, `ctx_index`, `ctx_search`, `ctx_stats`, and `ctx_doctor`. The modified upstream suite passes 4,702/4,702 runnable tests with 41 platform/optional skips, and the committed-artifact smoke verifies hashes, lazy bridge startup, exact tool registration, secret stripping, and private-network rejection.
+
+## Cache Optimizer Vendor Notes
+
+`pi-cache-optimizer@2.8.2` is vendored under `vendor/pi-cache-optimizer/` so prompt rewriting, cache-key injection, provider compatibility advice, local statistics, and the optional `models.json` repair path remain reviewable.
+
+Review notes:
+
+- npm `gitHead` is `dfa60b2c3e92f4a15363664c546d2042bded0b3f`; the tarball is pinned by SHA-256 `41eea15faef8a70ce7cb50999a3bdd4016d65435d274b883c205f0332cc420cf` and registry integrity `sha512-z5Ff2ZUF+U4O3gpV/uKTvO5046Zx/km1nDAw22b1GUKb8yslDAo1EZMlxTFTex9XGsmg/MVEt3FRmmpNNlpWvQ==`. Published runtime/docs/license files are byte-identical to the tarball; local review additions are recorded in `SOURCE-PATCHES.md`.
+- The package has no runtime dependencies, install scripts, direct network client, telemetry, or subprocess launch. It adjusts prompt ordering and cache hints in process and publishes read-only cache statistics through Pi's normal status API.
+- Normal persistence is limited to optimizer statistics/config under Pi's agent directory. `/cache-optimizer fix` is the only path that edits `models.json`; it requires an explicit preview and confirmation and creates a timestamped backup.
+- Provider-side caching remains best-effort. Reordering and cache-key/session-affinity hints cannot force an upstream proxy to retain or route a prefix correctly, so validate changes using actual provider cache-read metrics.
+- The package-local strictness-compatible typecheck passes and 28 local review tests cover prompt movement, footer ownership, statistics scopes, configuration precedence, compatibility diagnostics, JSONC repair, and the confirmed fix path.
+
+## Context Prune Vendor Notes
+
+`pi-context-prune@1.3.0` is vendored under `vendor/pi-context-prune/` because it rewrites the future LLM context, invokes a configured summarizer model with captured tool arguments/results, and persists recovery data into session history. A floating package install would let those data-handling semantics change outside this repository's review boundary.
+
+Review notes:
+
+- Upstream is pinned to tag `v1.3.0` / commit `7b4ac0ecb19d66150640a832432d45ad7d1815bb`. npm `gitHead` matches that commit; the tarball is pinned by SHA-256 `c2839f3f1aa65e5df138632fed9a15702da69216ea819d74fd2f9bf2865774e3` and registry integrity `sha512-Dw+EMjfJrqTyGvb6GWeilvkPaNxU0D/4NEDcHsLSK4ye31N2Uj/Y7Kh0mtY57+FvTsHiXuIYd19zutCrRSQCNA==`. The published source matches the tag; this vendored copy intentionally omits release-only `.github/workflows/release.yml` and `scripts/release.mjs`.
+- The package declares no runtime `dependencies` and no install/preinstall/postinstall scripts; only Pi/TUI/TypeBox peers. The MIT license is declared in package metadata (upstream ships no separate license file).
+- Runtime has no direct `fetch`, HTTP client, websocket, telemetry, or subprocess launch. Summarization deliberately sends captured tool names, arguments, assistant text, and result text to the selected model through Pi's authenticated `ModelRegistry` provider stream; therefore the selected provider receives that material even when it differs from the main model.
+- Direct filesystem access is limited to reading/writing `~/.pi/agent/context-prune/settings.json`. Session persistence uses Pi APIs to append full original tool-call records, hidden summaries, prune-frontier metadata, and summarizer usage statistics. Original tool results are not deleted from the JSONL session; only future provider context omits indexed `toolResult` messages. `context_tree_query` can recover originals, subject to Pi's normal output truncation.
+- Pruning can invalidate prompt cache from the replaced history position onward and every summary costs an additional model call. The machine-local trial configuration starts disabled with `pruneOn: "on-demand"`, `summarizerModel: "openai-codex/gpt-5.6-luna"`, and `summarizerThinking: "low"`; `/pruner on` enables queueing and `/pruner now` performs an intentional prune.
+- Coexistence is layered rather than duplicative: RTK/context-mode reduce or externalize tool output before it reaches history, cache-optimizer improves stable-prefix reuse, and context-prune optionally summarizes older recorded tool results. The extension publishes a normal status key, so it composes with the vendored powerline footer instead of replacing it.
+- Local patches replace the unavailable upstream `@sinclair/typebox` peer/import with this repo's exact `typebox@1.2.8`, and locally type the Pi 0.84 provider/base-URL runtime surface that is absent from the repo's older reproducible 0.80 type baseline. No pruning behavior is changed.
+- Runtime commands/tools: `/pruner` manages status/settings and `/pruner now` flushes queued batches; `context_tree_query` is always registered for recovery, while `context_prune` becomes active only in `agentic-auto` mode. Local integration tests cover disabled defaults, thinking options, selective context removal, and recovery-tool registration.
 
 ## Dynamic Workflows Vendor Notes
 
@@ -334,7 +378,7 @@ Other variants (`macchiato`, `frappé`, `latte`) or other themes can be added as
 `agent-sops/` holds the recurring maintenance procedures of this repo in the [Agent SOP format](https://github.com/strands-agents/agent-sop) (`.sop.md`, RFC 2119 constraints). Each SOP was distilled from the git history, including the failure modes hit along the way:
 
 | SOP | Procedure |
-|-----|-----------|
+| ----- | ----------- |
 | `add-pi-extension` | Add a new extension under `extensions/` following repo conventions (kill-switch env vars, `/command` inspection, deliberate-failure verification) |
 | `vendor-pi-extension` | Review and vendor a third-party pi extension (source pinning, gitHead check, network/write-path audit, documented patches) |
 | `bump-pi-baseline` | Track a new pi runtime version (devDeps bump, vendored type-surface audit, patch re-evaluation, runtime re-verification) |
