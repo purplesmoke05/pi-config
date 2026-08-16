@@ -2,3 +2,5 @@ node_modules/
 *.log
 result
 .playwright-mcp/
+
+.serena/
