@@ -1,6 +1,7 @@
 import { resolvePiAgentDir } from "./agent-dir.js";
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	BUILT_IN_TOOL_OVERRIDE_NAMES,
 	BASH_OUTPUT_MODES,
@@ -20,8 +21,35 @@ import {
 } from "./types.js";
 import { toRecord } from "./tool-metadata.js";
 
-const CONFIG_DIR = join(resolvePiAgentDir(), "extensions", "pi-tool-display");
-const CONFIG_FILE = join(CONFIG_DIR, "config.json");
+// pi-config patch: resolve the config file with repo-local priority so the
+// vendored package's own config/config.json is the canonical, version-controlled
+// source. Resolution order:
+//   1. PI_TOOL_DISPLAY_CONFIG env (explicit override, any absolute path)
+//   2. repo-local config/config.json next to this extension (canonical)
+//   3. <agentDir>/extensions/pi-tool-display/config.json (legacy fallback)
+// Upstream pi-tool-display only supported (3); (1) and (2) are pi-config additions.
+const REPO_CONFIG_FILE = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"config",
+	"config.json",
+);
+const AGENT_CONFIG_DIR = join(resolvePiAgentDir(), "extensions", "pi-tool-display");
+const AGENT_CONFIG_FILE = join(AGENT_CONFIG_DIR, "config.json");
+
+function resolveDefaultConfigFile(): string {
+	const envPath = process.env.PI_TOOL_DISPLAY_CONFIG;
+	if (envPath && envPath.trim() !== "") {
+		return envPath;
+	}
+	if (existsSync(REPO_CONFIG_FILE)) {
+		return REPO_CONFIG_FILE;
+	}
+	return AGENT_CONFIG_FILE;
+}
+
+const CONFIG_DIR = AGENT_CONFIG_DIR;
+const CONFIG_FILE = resolveDefaultConfigFile();
 
 interface LegacyToolDisplayConfigSource extends Partial<ToolDisplayConfig> {
 	registerReadToolOverride?: unknown;

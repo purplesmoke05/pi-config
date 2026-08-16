@@ -39,7 +39,7 @@ Or add to `~/.pi/agent/settings.json`:
 | `vendor/context-mode/` | vendored extension + skills | Modified, audited `context-mode@1.0.169`; local MCP execution/index/search with update/install paths removed and strict child-process boundaries |
 | `vendor/pi-dynamic-workflows/` | vendored extension + skills | Modified, audited `@quintinshaw/pi-dynamic-workflows@3.5.0`; explicitly approved JavaScript orchestration, resumable subagents, fail-closed worktrees, and restricted web research |
 | `vendor/pi-powerline-footer/` | vendored extension | Reviewed copy of `pi-powerline-footer@0.6.1`; powerline-style status bar with configurable status-item placement |
-| `vendor/pi-tool-display/` | vendored extension | Reviewed copy of `pi-tool-display@0.5.0`; compact tool-call rendering, diff visualization, and output truncation, with the upstream postinstall hook removed |
+| `vendor/pi-tool-display/` | vendored extension | Reviewed copy of `pi-tool-display@0.5.0`; compact tool-call rendering, diff visualization, and output truncation, with the upstream postinstall hook removed and config resolution patched to make `vendor/pi-tool-display/config/config.json` the canonical, version-controlled source |
 | `vendor/pi-plan-mode/` | vendored extension | Reviewed copy of the official `plan-mode` example from the pi monorepo; `/plan` or `Ctrl+Alt+P` toggles read-only exploration with a bash allowlist, `Plan:` step extraction, `[DONE:n]` tracking, and `--plan` startup flag |
 | `agent-sops/` | Agent SOPs | Recurring maintenance procedures for this repo as [Agent SOPs](https://github.com/strands-agents/agent-sop), served to Claude Code via `.mcp.json` |
 | `prompts/` | prompt templates | Empty for now |
@@ -312,8 +312,8 @@ Review notes:
 - No runtime `dependencies`; only `peerDependencies` on pi packages.
 - **Upstream `postinstall` removed**: it ran `../../scripts/patch-vulnerable-deps.mjs` when the install path contained `/.pi/agent/extensions/`. That script is not shipped by the package, so the hook was inert in practice, but it is still a latent code-execution surface; the vendored copy deletes it.
 - No network access: no `fetch`/`http`/`https`/`net`/websocket usage anywhere in the source. No subprocess spawns.
-- Filesystem: reads config and pending-diff preview files; writes debug logs and config under the pi agent directory.
-- Local patches (this repo only): `postinstall` removed; `peerDependencies` widened to `*`; the unused compiled `tool-display-api-consumer.js`/`.d.ts` and its `exports` entry removed; type-drift fixes for the current pi baseline (optional `renderCall`/`context` signatures, `context.cwd` null-safety, `this` typing in the user-message-box renderer).
+- Filesystem: reads config and pending-diff preview files; writes debug logs and config. Config resolution is patched (see below) to prefer a repo-local `config/config.json`.
+- Local patches (this repo only): `postinstall` removed; `peerDependencies` widened to `*`; the unused compiled `tool-display-api-consumer.js`/`.d.ts` and its `exports` entry removed; type-drift fixes for the current pi baseline (optional `renderCall`/`context` signatures, `context.cwd` null-safety, `this` typing in the user-message-box renderer); **config path resolution patched** in `src/config-store.ts` so the canonical config lives at `vendor/pi-tool-display/config/config.json` (version-controlled) with resolution order `PI_TOOL_DISPLAY_CONFIG` env → repo-local → `~/.pi/agent/extensions/pi-tool-display/config.json` (legacy fallback).
 
 ## Theme
 
