@@ -33,7 +33,6 @@ Or add to `~/.pi/agent/settings.json`:
 | `vendor/pi-rtk-optimizer/` | vendored extension | RTK command rewriting and tool output compaction for `bash`, `read`, and `grep` |
 | `vendor/pi-ollama-cloud-provider/` | vendored extension | Reviewed copy of `pi-ollama-cloud-provider@0.3.0`, registered as `ollama-cloud` |
 | `vendor/pi-notify-agent/` | vendored extension | Reviewed copy of `pi-notify-agent@0.1.2`; cross-platform desktop notification + sound on `agent_end`, with `/notify-test` and `/notify-status` |
-| `vendor/pi-extension-workbook/` | vendored extension + skill | Audited copy of `@firstpick/pi-extension-workbook@0.1.4`; bounded XLSX/XLSM inspection, reading, rendering, editing, diffing, and validation with `/workbook-doctor` |
 | `vendor/pi-smart-fetch/` | vendored extension | Hardened source copy of `pi-smart-fetch@0.3.17`; public-network-only `web_fetch` / `batch_web_fetch` with pinned DNS, bounded bodies and no hidden extractor requests |
 | `vendor/pi-smart-web-search/` | vendored extension | Hardened source copy of `pi-smart-web-search@0.4.0`; fixed-endpoint DuckDuckGo search with public-link filtering and explicit untrusted-data boundaries |
 | `vendor/rpiv-ask-user-question/` | vendored extension | Audited copy of `@juicesharp/rpiv-ask-user-question@2.3.1`; structured multi-question overlays with reviewed local config and external-editor bridges |
@@ -173,21 +172,6 @@ pi renders fenced code blocks with a per-line prefix (`codeBlockIndent`, default
 ```
 
 Disable the extension with `PI_COPY_CODE_DISABLE=1`. No network access, no filesystem writes; the only subprocess is pi's own `copyToClipboard` (xclip/xsel/wl-copy/pbcopy/clip or OSC 52).
-
-## Workbook Extension Vendor Notes
-
-`@firstpick/pi-extension-workbook@0.1.4` is vendored under `vendor/pi-extension-workbook/` instead of being installed as an opaque npm package because it can read and mutate arbitrary workbook paths and therefore requires source and dependency review before it is loaded with this package.
-
-Review notes:
-
-- The npm tarball is pinned by SHA-1 `bf061fadd84091a71ce13a9d998098582aa583ef` and SHA-512 `DCx8f6keARW19Zpm/C+1k2edzDPYH4LnzqupJzOJdppW4MDYs/qIkZIIaslNMIa1CfbMG9ma4aEoy8KSoZRB6g==`. All 46 published files match upstream commit `f14082164d2f8ac22c67daa873a10ff3a22c5092` byte-for-byte. npm records the preceding commit `04f11b44c4d37c64ab8741a9092bba3780b255d9` as `gitHead`; the only package difference between those commits is the `0.1.3` to `0.1.4` version string.
-- The upstream lockfile no longer installs reproducibly: its integrity for `@firstpick/pi-utils@0.2.4` differs from the current registry tarball and `npm ci` fails with `EINTEGRITY`. The vendored copy therefore removes that dependency and keeps the small required path, atomic-write, hashing, CRC-32, sync, and bounded process helpers locally. This also avoids loading the utility package's unrelated HTTP, shell, UI, and other exports. Remaining runtime dependencies are pinned exactly to `@xmldom/xmldom@0.9.10` and `fflate@0.8.3`; both are dependency-free at runtime and have no consumer install scripts.
-- No runtime network target exists. OOXML namespace URLs are identifiers only, external workbook relationships and hyperlinks are inventoried but never followed, and external data is never refreshed.
-- The six registered workbook tools launch no subprocesses. On Windows only, explicit `/workbook-doctor` inspection runs `powershell.exe` with a fixed registry lookup to detect Excel. A disabled feasibility worker can launch `powershell.exe`, Excel COM, and `taskkill.exe`, but it is not selected or exposed by any registered workbook tool; native Excel mutation remains disabled after upstream no-op fidelity failures.
-- Input reads are the requested `.xlsx`/`.xlsm`, baseline, and diff paths. Normal edits default to a sibling `<name>.pi-edited.<ext>` file; explicit in-place edits create `<name>.pi-recovery-<timestamp>.<ext>`. Caller-selected output and render directories are honored. Atomic commits briefly create `.pi-sibling-*` and `.tmp` files beside the destination and remove them in `finally`. Other temporary writes use the OS temp directory under `pi-workbook-transaction-*`, `pi-workbook-preview-cache/ooxml-safe-bitmap-v2/`, `pi-workbook-results/<uuid>/`, `.pi-workbook-doctor-*`, and, only for the disabled native worker, `pi-workbook-native-worker-*`. Doctor probes, transaction staging, and native-worker staging are removed; preview cache pruning is bounded to 256 files / 512 MiB, while truncated JSON result artifacts remain until OS temp cleanup.
-- The enabled `ooxml-safe` engine rejects path-traversing, encrypted, ZIP64, oversized, over-compressed, DTD/entity-bearing, and relationship-escaping packages. Edits are dry-run by default, require a current SHA-256 to commit, use Pi's destination mutation queue plus durable atomic writes, and validate protected active-content parts after saving. Macros are never parsed, executed, or modified.
-- Local safety patch: signed-VBA workbooks are read-only for edits. Upstream includes a pinned BSD-2-Clause signed-VBA fixture and a `PASS_PACKAGE_ONLY` result showing its protected parts remain unchanged, but the same report records controlled Excel UI validation as `SKIP` because it requires interactive Windows. Until an edited signed workbook passes that repair-dialog check, inspect/read/render/diff/validate remain available, but `workbook_edit` fails closed when a VBA signature part is detected.
-- Runtime requires Node.js 24 or newer. Use `/workbook-doctor` for dependency, backend, runtime-file, and temp-directory status. Registered tools are `workbook_inspect`, `workbook_read`, `workbook_render`, `workbook_edit`, `workbook_diff`, and `workbook_validate`; the bundled `workbook-editor` skill enforces inspect → read/render → dry-run → hash-guarded commit → validate/diff verification.
 
 ## Smart Web Search and Fetch Vendor Notes
 

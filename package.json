@@ -20,7 +20,6 @@
       "./vendor/pi-rtk-optimizer/index.ts",
       "./vendor/pi-ollama-cloud-provider/extensions/ollama-cloud/index.ts",
       "./vendor/pi-notify-agent/extensions/index.ts",
-      "./vendor/pi-extension-workbook/index.ts",
       "./vendor/pi-smart-fetch/index.ts",
       "./vendor/pi-smart-web-search/index.ts",
       "./vendor/rpiv-ask-user-question/index.ts",
@@ -33,7 +32,6 @@
       "./vendor/pi-cache-optimizer/index.ts"
     ],
     "skills": [
-      "./vendor/pi-extension-workbook/skills",
       "./vendor/context-mode/skills",
       "./vendor/pi-dynamic-workflows/skills"
     ],
@@ -52,10 +50,8 @@
   },
   "dependencies": {
     "@mixmark-io/domino": "2.2.0",
-    "@xmldom/xmldom": "0.9.10",
     "acorn": "8.16.0",
     "defuddle": "0.19.2",
-    "fflate": "0.8.3",
     "linkedom": "0.18.13",
     "minimatch": "10.2.5",
     "turndown": "7.2.4",
